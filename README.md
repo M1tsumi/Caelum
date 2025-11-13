@@ -57,6 +57,49 @@ client.delegate = self; // adopt CLMDiscordClientDelegate / CLMGatewayEventDeleg
 - Messages pagination: use `listMessagesInChannel:limit:before:after:` to page backward (supply last message ID to `before`).
 - Guild members pagination: use `listMembersInGuild:limit:after:` and pass the last member ID to `after` for the next page.
 
+## Coverage (Discord API v10)
+- Users: current user, get user.
+- Channels: get/modify/delete, typing, webhooks list/create/modify/delete, permission overwrites.
+- Messages: list/send/edit/delete, reactions add/remove own, bulk delete, pins list/pin/unpin, attachments (multipart).
+- Threads: start (from message/without), join/leave, add/remove member, list archived (public/private), list joined private, list active in guild.
+- Guilds: get, list channels/members, roles list/create/delete, bans ban/unban, templates list/get/create/modify/sync/delete, welcome screen get/modify, onboarding get/modify, widget get/modify, vanity URL, integrations list, prune count/start.
+- Emojis/Stickers: list/get/create/modify/delete.
+- Invites: create/get/delete, list by channel/guild.
+- Application commands: global/guild list/create/edit/delete.
+- Audit log: fetch with filters.
+- Scheduled events: list/create/modify/delete.
+- Stage instances: create/modify/delete.
+- Voice state: modify self/other in guild.
+- Rate limits: 429 surfaced with retry headers in error userInfo.
+
+## Examples
+### Send a message with attachments
+```objc
+CLMRESTFilePart *file = [CLMRESTFilePart partWithField:@"files[0]" filename:@"hello.txt" mimeType:@"text/plain" data:[@"hi" dataUsingEncoding:NSUTF8StringEncoding]];
+[client.rest sendMessageInChannel:channelID
+                              json:@{ @"content": @"Hi with file" }
+                              files:@[file]
+                         completion:^(CLMRESTResponse *resp) { /* handle */ }];
+```
+
+### Start a thread from a message
+```objc
+[client.rest startThreadFromMessageInChannel:channelID
+                                   messageID:messageID
+                                         name:@"Topic"
+                           autoArchiveDuration:@(60)
+                             rateLimitPerUser:nil
+                                    completion:^(CLMRESTResponse *resp){ /* handle */ }];
+```
+
+### Interaction followup: edit original response
+```objc
+[client.rest editOriginalInteractionResponseForApplication:applicationID
+                                                     token:interactionToken
+                                                      json:@{ @"content": @"Updated" }
+                                                completion:^(CLMRESTResponse *resp){ /* handle */ }];
+```
+
 ## Roadmap
 See `plan.txt` for the detailed plan. High‑level milestones:
 - M0: Scaffold, logging, error domain

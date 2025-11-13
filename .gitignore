@@ -47,4 +47,5 @@ fastlane/test_output/
 *.orig
 
 # Project files to ignore
+docs.txt
 plan.txt
