@@ -1,5 +1,6 @@
 #import "CLMDiscordGatewayClient.h"
 #import "CLMWebSocketConnection.h"
+#import "CLMRESTConfiguration.h"
 
 typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     CLMGatewayOpDispatch = 0,
