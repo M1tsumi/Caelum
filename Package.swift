@@ -17,6 +17,11 @@ let package = Package(
             publicHeadersPath: "include",
             cSettings: [
                 .headerSearchPath("."),
+                .headerSearchPath("Core"),
+                .headerSearchPath("REST"),
+                .headerSearchPath("Gateway"),
+                .headerSearchPath("Models"),
+                .headerSearchPath("Client"),
             ]
         )
     ]
