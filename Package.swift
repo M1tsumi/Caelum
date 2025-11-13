@@ -14,13 +14,9 @@ let package = Package(
         .target(
             name: "Caelum",
             path: "Source",
-            publicHeadersPath: ".",
+            publicHeadersPath: "include",
             cSettings: [
-                .headerSearchPath("Core"),
-                .headerSearchPath("REST"),
-                .headerSearchPath("Gateway"),
-                .headerSearchPath("Models"),
-                .headerSearchPath("Client")
+                .headerSearchPath("."),
             ]
         )
     ]

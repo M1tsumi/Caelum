@@ -1,0 +1,23 @@
+#import <Foundation/Foundation.h>
+// Public umbrella header for Caelum (SwiftPM)
+// Core
+#import "Core/CLMLogger.h"
+#import "Core/CLMErrors.h"
+#import "Core/CLMClock.h"
+// REST
+#import "REST/CLMRESTConfiguration.h"
+#import "REST/CLMRESTRequest.h"
+#import "REST/CLMRESTResponse.h"
+#import "REST/CLMRateLimiter.h"
+#import "REST/CLMDiscordRESTClient.h"
+#import "REST/CLMMessagesPaginator.h"
+#import "REST/CLMMembersPaginator.h"
+// Gateway
+#import "Gateway/CLMGatewayConfiguration.h"
+#import "Gateway/CLMWebSocketConnection.h"
+#import "Gateway/CLMDiscordGatewayClient.h"
+// Models
+#import "Models/CLMSnowflake.h"
+// Client
+#import "Client/CLMDiscordClient.h"
+#import "Client/CLMClientConfiguration.h"
