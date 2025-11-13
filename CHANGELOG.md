@@ -10,6 +10,9 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - REST: Added convenience endpoints — `users/@me`, `applications/@me`, `channels/{id}`, `guilds/{id}`, `channels/{id}/messages` (send).
 - REST: Channels — modify channel (name/topic), delete channel, trigger typing, list/create webhooks.
 - REST: Guilds — list channels, list members (paginated with limit/after).
+- REST: Added Audit Log Reason header support on mutating endpoints.
+- REST: Added pagination helpers: `CLMMessagesPaginator`, `CLMMembersPaginator`.
+- REST: Error mapping to `CLMErrorDomain` codes for network/decode/auth/429/server.
 - Packaging: Added Swift Package manifest (`Package.swift`).
 - CI: Added GitHub Actions workflow (macOS) to build via SwiftPM.
 - README: Professionalized with badges (Language, Platforms, Status, Changelog, Discord, License, CI) and Quickstart.

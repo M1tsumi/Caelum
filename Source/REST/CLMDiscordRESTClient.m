@@ -39,6 +39,14 @@
         [urlRequest setValue:[NSString stringWithFormat:@"Bot %@", token] forHTTPHeaderField:@"Authorization"];
     }
 
+    // Audit Log Reason (optional, URL-encoded per Discord requirements)
+    if (request.auditLogReason.length > 0) {
+        NSString *encoded = [request.auditLogReason stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]];
+        if (encoded.length > 0) {
+            [urlRequest setValue:encoded forHTTPHeaderField:@"X-Audit-Log-Reason"];
+        }
+    }
+
     if (request.jsonBody) {
         NSError *encodeError = nil;
         NSData *body = [NSJSONSerialization dataWithJSONObject:request.jsonBody options:0 error:&encodeError];
@@ -57,15 +65,38 @@
             resp.statusCode = ((NSHTTPURLResponse *)response).statusCode;
         }
         if (error) {
-            resp.error = error;
+            // Network/transport error
+            resp.error = [NSError errorWithDomain:@"com.caelum.discord"
+                                             code:1 /* CLMErrorNetwork */
+                                         userInfo:@{ NSUnderlyingErrorKey: error ?: [NSNull null],
+                                                     @"endpoint": request.route ?: @"",
+                                                   }];
         } else if (data.length > 0) {
             NSError *jsonError = nil;
             id obj = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
             if (jsonError) {
-                resp.error = jsonError;
+                resp.error = [NSError errorWithDomain:@"com.caelum.discord"
+                                                 code:2 /* CLMErrorDecode */
+                                             userInfo:@{ NSUnderlyingErrorKey: jsonError,
+                                                         @"endpoint": request.route ?: @"",
+                                                         @"statusCode": @(resp.statusCode),
+                                                       }];
             } else {
                 resp.JSONObject = obj;
             }
+        }
+
+        // Map HTTP status codes to domain errors when applicable
+        if (!resp.error && resp.statusCode >= 400) {
+            NSInteger code = 0; // CLMErrorUnknown default
+            if (resp.statusCode == 401) code = 3; // CLMErrorUnauthorized
+            else if (resp.statusCode == 429) code = 4; // CLMErrorRateLimited
+            else if (resp.statusCode >= 500) code = 7; // server generic
+            resp.error = [NSError errorWithDomain:@"com.caelum.discord"
+                                             code:code
+                                         userInfo:@{ @"statusCode": @(resp.statusCode),
+                                                     @"endpoint": request.route ?: @"",
+                                                   }];
         }
         if (completion) completion(resp);
     }];
@@ -94,6 +125,14 @@
     NSString *route = [NSString stringWithFormat:@"channels/%@/messages", channelID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
     req.jsonBody = @{ @"content": content ?: @"" };
+    [self performRequest:req completion:completion];
+}
+
+- (void)sendMessage:(NSString *)content toChannel:(NSString *)channelID auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = @{ @"content": content ?: @"" };
+    req.auditLogReason = reason;
     [self performRequest:req completion:completion];
 }
 
@@ -129,15 +168,40 @@
     [self performRequest:req completion:completion];
 }
 
+- (void)modifyChannelWithID:(NSString *)channelID name:(NSString *)name topic:(NSString *)topic auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@", channelID];
+    NSMutableDictionary *body = [NSMutableDictionary dictionary];
+    if (name.length > 0) { body[@"name"] = name; }
+    if (topic.length > 0) { body[@"topic"] = topic; }
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = body;
+    req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
 - (void)deleteChannelWithID:(NSString *)channelID completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"channels/%@", channelID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
     [self performRequest:req completion:completion];
 }
 
+- (void)deleteChannelWithID:(NSString *)channelID auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
 - (void)triggerTypingInChannel:(NSString *)channelID completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"channels/%@/typing", channelID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)triggerTypingInChannel:(NSString *)channelID auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/typing", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.auditLogReason = reason;
     [self performRequest:req completion:completion];
 }
 
@@ -151,6 +215,14 @@
     NSString *route = [NSString stringWithFormat:@"channels/%@/webhooks", channelID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
     req.jsonBody = @{ @"name": name ?: @"webhook" };
+    [self performRequest:req completion:completion];
+}
+
+- (void)createWebhookInChannel:(NSString *)channelID name:(NSString *)name auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/webhooks", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = @{ @"name": name ?: @"webhook" };
+    req.auditLogReason = reason;
     [self performRequest:req completion:completion];
 }
 
@@ -176,9 +248,24 @@
     [self performRequest:req completion:completion];
 }
 
+- (void)editMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID newContent:(NSString *)content auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@", channelID, messageID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = @{ @"content": content ?: @"" };
+    req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
 - (void)deleteMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@", channelID, messageID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)deleteMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@", channelID, messageID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    req.auditLogReason = reason;
     [self performRequest:req completion:completion];
 }
 @end

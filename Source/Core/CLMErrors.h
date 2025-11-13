@@ -6,4 +6,5 @@ typedef NS_ERROR_ENUM(CLMErrorDomain, CLMErrorCode) {
     CLMErrorDecode = 2,
     CLMErrorUnauthorized = 3,
     CLMErrorRateLimited = 4,
+    CLMErrorServer = 7,
 };

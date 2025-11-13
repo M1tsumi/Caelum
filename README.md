@@ -5,9 +5,15 @@
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20macOS-lightgrey)
 ![Status](https://img.shields.io/badge/status-early--development-orange)
 [![Changelog](https://img.shields.io/badge/docs-changelog-informational)](CHANGELOG.md)
-[![Discord](https://img.shields.io/badge/discord-join%20our%20server-5865F2?logo=discord&logoColor=white)](https://discord.gg/KzFY5zEja4)
  [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![CI](https://github.com/M1tsumi/Caelum/actions/workflows/ci.yml/badge.svg)](https://github.com/M1tsumi/Caelum/actions/workflows/ci.yml)
+
+<div align="center" style="margin: 8px 0 0 0;">
+  <a href="https://discord.gg/KzFY5zEja4" target="_blank" rel="noopener noreferrer">
+    <button style="background:#5865F2;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;">Join our Discord</button>
+  </a>
+  <br/>
+</div>
 
 > Note: Caelum is in active development. Public APIs may evolve prior to the first stable release.
 
@@ -47,6 +53,10 @@ client.delegate = self; // adopt CLMDiscordClientDelegate / CLMGatewayEventDeleg
 }];
 ```
 
+## Usage notes
+- Messages pagination: use `listMessagesInChannel:limit:before:after:` to page backward (supply last message ID to `before`).
+- Guild members pagination: use `listMembersInGuild:limit:after:` and pass the last member ID to `after` for the next page.
+
 ## Roadmap
 See `plan.txt` for the detailed plan. High‑level milestones:
 - M0: Scaffold, logging, error domain
@@ -61,9 +71,5 @@ See `plan.txt` for the detailed plan. High‑level milestones:
 ## Contributing
 Contributions are welcome after initial API stabilization. Please open issues for bugs and proposals. See `CHANGELOG.md` for release notes.
 
-## License
-MIT — see [LICENSE](LICENSE).
 
-## Links
-- `CHANGELOG.md`
-- `plan.txt`
+

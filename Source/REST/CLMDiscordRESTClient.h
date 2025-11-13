@@ -18,11 +18,16 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 // Channels
 - (void)getChannelWithID:(NSString *)channelID completion:(CLMRESTCompletion)completion;
 - (void)sendMessage:(NSString *)content toChannel:(NSString *)channelID completion:(CLMRESTCompletion)completion;
+- (void)sendMessage:(NSString *)content toChannel:(NSString *)channelID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)modifyChannelWithID:(NSString *)channelID name:(nullable NSString *)name topic:(nullable NSString *)topic completion:(CLMRESTCompletion)completion;
+- (void)modifyChannelWithID:(NSString *)channelID name:(nullable NSString *)name topic:(nullable NSString *)topic auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)deleteChannelWithID:(NSString *)channelID completion:(CLMRESTCompletion)completion;
+- (void)deleteChannelWithID:(NSString *)channelID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)triggerTypingInChannel:(NSString *)channelID completion:(CLMRESTCompletion)completion;
+- (void)triggerTypingInChannel:(NSString *)channelID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)listWebhooksInChannel:(NSString *)channelID completion:(CLMRESTCompletion)completion;
 - (void)createWebhookInChannel:(NSString *)channelID name:(NSString *)name completion:(CLMRESTCompletion)completion;
+- (void)createWebhookInChannel:(NSString *)channelID name:(NSString *)name auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 // Messages
 - (void)listMessagesInChannel:(NSString *)channelID
                          limit:(nullable NSNumber *)limit
@@ -30,7 +35,9 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
                          after:(nullable NSString *)after
                        completion:(CLMRESTCompletion)completion;
 - (void)editMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID newContent:(NSString *)content completion:(CLMRESTCompletion)completion;
+- (void)editMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID newContent:(NSString *)content auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)deleteMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion;
+- (void)deleteMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 
 // Guilds
 - (void)getGuildWithID:(NSString *)guildID completion:(CLMRESTCompletion)completion;
