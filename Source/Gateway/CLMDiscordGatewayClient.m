@@ -1,6 +1,7 @@
 #import "CLMDiscordGatewayClient.h"
 #import "CLMWebSocketConnection.h"
 #import "CLMRESTConfiguration.h"
+#import "Models/Interactions/CLMComponentInteraction.h"
 
 typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     CLMGatewayOpDispatch = 0,
@@ -24,6 +25,7 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
 - (instancetype)initWithConfiguration:(CLMGatewayConfiguration *)configuration {
     if ((self=[super init])) {
         _config = configuration;
+        _shardId = (_config.shardId >= 0 ? _config.shardId : -1);
         NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
         _socket = [[CLMWebSocketConnection alloc] initWithSessionConfiguration:cfg];
         _socket.delegate = self;
@@ -53,10 +55,13 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     if (token.length == 0) { return; }
     NSNumber *intents = @(_config.intents);
     NSDictionary *properties = @{ @"os": @"iOS", @"browser": @"Caelum", @"device": @"Caelum" };
-    NSDictionary *data = @{ @"token": token,
-                             @"intents": intents,
-                             @"properties": properties,
-                           };
+    NSMutableDictionary *data = [@{ @"token": token,
+                                     @"intents": intents,
+                                     @"properties": properties,
+                                   } mutableCopy];
+    if (_config.shardId >= 0 && _config.shardCount > 0) {
+        data[@"shard"] = @[ @(_config.shardId), @(_config.shardCount) ];
+    }
     NSDictionary *payload = @{ @"op": @(CLMGatewayOpIdentify), @"d": data };
     [self.socket sendJSONObject:payload];
 }
@@ -76,11 +81,34 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     [self.socket sendJSONObject:payload];
 }
 
+// Presence Update (OP 3)
+- (void)sendPresenceUpdate:(NSDictionary *)presencePayload {
+    if (![presencePayload isKindOfClass:[NSDictionary class]]) return;
+    NSDictionary *payload = @{ @"op": @3, @"d": presencePayload };
+    [self.socket sendJSONObject:payload];
+}
+
+// Request Guild Members (OP 8)
+- (void)requestGuildMembers:(NSString *)guildId query:(NSString *)query userIDs:(NSArray<NSString *> *)userIDs limit:(NSNumber *)limit presences:(NSNumber *)presences nonce:(NSString *)nonce {
+    if (guildId.length == 0) return;
+    NSMutableDictionary *d = [@{ @"guild_id": guildId } mutableCopy];
+    if (query.length > 0) d[@"query"] = query; // mutually exclusive with user_ids
+    if (userIDs.count > 0) d[@"user_ids"] = userIDs;
+    if (limit) d[@"limit"] = limit;
+    if (presences) d[@"presences"] = presences;
+    if (nonce.length > 0) d[@"nonce"] = nonce;
+    NSDictionary *payload = @{ @"op": @8, @"d": d };
+    [self.socket sendJSONObject:payload];
+}
+
 #pragma mark - CLMWebSocketConnectionDelegate
 
 - (void)webSocketDidOpen {
     if ([self.delegate respondsToSelector:@selector(gatewayDidConnect)]) {
         [self.delegate gatewayDidConnect];
+    }
+    if ([self.delegate respondsToSelector:@selector(gateway:didConnectWithShardId:)]) {
+        [self.delegate gateway:self didConnectWithShardId:self.shardId];
     }
 }
 
@@ -88,6 +116,10 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     if ([self.delegate respondsToSelector:@selector(gatewayDidDisconnectWithError:)]) {
         NSError *err = [NSError errorWithDomain:@"com.caelum.discord" code:code userInfo:@{NSLocalizedDescriptionKey: reason ?: @"Closed"}];
         [self.delegate gatewayDidDisconnectWithError:err];
+    }
+    if ([self.delegate respondsToSelector:@selector(gateway:didDisconnectWithError:shardId:)]) {
+        NSError *err = [NSError errorWithDomain:@"com.caelum.discord" code:code userInfo:@{NSLocalizedDescriptionKey: reason ?: @"Closed"}];
+        [self.delegate gateway:self didDisconnectWithError:err shardId:self.shardId];
     }
 }
 
@@ -115,6 +147,24 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
         case CLMGatewayOpDispatch: {
             if ([self.delegate respondsToSelector:@selector(gatewayDidReceiveDispatch:payload:)]) {
                 [self.delegate gatewayDidReceiveDispatch:(t ?: @"") payload:(d ?: @{})];
+            }
+            if ([self.delegate respondsToSelector:@selector(gateway:didReceiveDispatch:payload:shardId:)]) {
+                [self.delegate gateway:self didReceiveDispatch:(t ?: @"") payload:(d ?: @{}) shardId:self.shardId];
+            }
+            if ([t isKindOfClass:[NSString class]]) {
+                if ([t isEqualToString:@"INTERACTION_CREATE"] || [t isEqualToString:@"MODAL_SUBMIT"]) {
+                    if ([d isKindOfClass:[NSDictionary class]]) {
+                        CLMComponentInteraction *interaction = [CLMComponentInteraction fromGatewayPayload:(NSDictionary *)d];
+                        if ([self.delegate respondsToSelector:@selector(gatewayDidReceiveInteraction:)]) {
+                            [self.delegate gatewayDidReceiveInteraction:interaction];
+                        }
+                    }
+                }
+                else if ([t isEqualToString:@"GUILD_MEMBERS_CHUNK"]) {
+                    if ([d isKindOfClass:[NSDictionary class]] && [self.delegate respondsToSelector:@selector(gatewayDidReceiveGuildMembersChunk:)]) {
+                        [self.delegate gatewayDidReceiveGuildMembersChunk:(NSDictionary *)d];
+                    }
+                }
             }
         } break;
         default: break;

@@ -4,14 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to Semantic Versioning once stable.
 
-## [Unreleased]
+## [v0.1.0 - 2025-11-14]
+### Added
 - Gateway: Implemented `NSURLSessionWebSocketTask` connection with JSON handling.
-- Gateway: Added Identify flow and heartbeat loop (HELLO/ACK), basic Dispatch routing.
-- REST: Massive coverage expansion for Discord v10:
+- Gateway: Identify flow and heartbeat loop (HELLO/ACK); dispatch routing.
+- Gateway: Sharding via `CLMShardManager`; shard-aware delegate methods.
+- Gateway: Presence update (OP 3) and guild member chunk requests (OP 8).
+- REST: v10 coverage expansion:
   - Users, Applications (commands CRUD global/guild)
   - Channels (get/modify/delete, typing), Webhooks (list/create/modify/delete)
   - Messages (list/send/edit/delete, reactions own add/remove, bulk delete, pins list/pin/unpin)
-  - Messages with attachments (multipart): send/edit; Webhook execute with files
+  - Multipart attachments for messages and webhooks
   - Permission overwrites
   - Threads (start/join/leave/add/remove member; list archived public/private, joined private; list active in guild)
   - Guilds (get, list channels/members, roles list/create/delete, bans ban/unban)
@@ -22,13 +25,21 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
   - Audit log fetch with filters
   - Scheduled events list/create/modify/delete
   - Stage instances create/modify/delete
-  - Voice state modify self/other
-- REST: Audit Log Reason header support on mutating endpoints (URL‑encoded).
-- REST: 429 error surfaces rate limit headers (`Retry-After`, `X-RateLimit-*`) in error.userInfo.
-- REST: Multipart/form-data support with `payload_json` and file parts.
-- Tests: Added XCTest harness with MockURLProtocol. Added tests for success, JSON decode error, status mapping (401/429/5xx), audit log header.
-- README: Added coverage summary and examples (multipart, threads, followups).
-- Project: `.gitignore` updated for Xcode/Obj‑C; `plan.txt` ignored.
+  - Voice state modify self/other (voice features otherwise pending)
+- Interactions & Components V2: Buttons, Select Menus, Text Inputs (Modals), Action Rows; interaction callbacks.
+- Forum Channels & Tags: Models and REST helpers.
+- Polls: Models, send message with poll, fetch voters.
+- Localization: `CLMLocale` and `CLMLocalizedString`.
+- AutoMod: Rules, triggers, actions models.
+- Message Snapshot: Embed helper for link previews.
+- Application Emoji: Models and REST CRUD helpers for application-scoped emojis.
+- Developer Experience: `CLMCacheManager`/`CLMCachePolicy` caching and `CLMEventCenter` (block-based listeners).
+
+### Changed
+- README: Added Phase 4/5 highlights, examples (sharding, events, caching, application emoji), and criteria checklist.
+
+### Fixed
+- Documentation and minor typos across public headers.
 
 ## [Unreleased] - 2025-11-13
 ### Added
@@ -38,3 +49,4 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 
 [Unreleased]: https://github.com/M1tsumi/Caelum/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/M1tsumi/Caelum/releases/tag/v0.1.0
+

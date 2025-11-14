@@ -23,6 +23,8 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)sendMessage:(NSString *)content toChannel:(NSString *)channelID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)modifyChannelWithID:(NSString *)channelID name:(nullable NSString *)name topic:(nullable NSString *)topic completion:(CLMRESTCompletion)completion;
 - (void)modifyChannelWithID:(NSString *)channelID name:(nullable NSString *)name topic:(nullable NSString *)topic auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+- (void)modifyChannelWithID:(NSString *)channelID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
+- (void)modifyChannelWithID:(NSString *)channelID json:(NSDictionary *)json auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)deleteChannelWithID:(NSString *)channelID completion:(CLMRESTCompletion)completion;
 - (void)deleteChannelWithID:(NSString *)channelID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)triggerTypingInChannel:(NSString *)channelID completion:(CLMRESTCompletion)completion;
@@ -50,6 +52,9 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 // Messages with attachments
 - (void)sendMessageInChannel:(NSString *)channelID json:(NSDictionary *)json files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
 - (void)editMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID json:(NSDictionary *)json files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
+// Polls
+- (void)sendMessageWithPollInChannel:(NSString *)channelID content:(nullable NSString *)content pollJSON:(NSDictionary *)pollJSON completion:(CLMRESTCompletion)completion;
+- (void)getPollAnswerUsersInChannel:(NSString *)channelID messageID:(NSString *)messageID answerID:(NSString *)answerID after:(nullable NSString *)after limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
 
 // Guilds
 - (void)getGuildWithID:(NSString *)guildID completion:(CLMRESTCompletion)completion;
@@ -69,6 +74,8 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 // Guild Channels (create)
 - (void)createChannelInGuild:(NSString *)guildID name:(NSString *)name type:(nullable NSNumber *)type topic:(nullable NSString *)topic completion:(CLMRESTCompletion)completion;
 - (void)createChannelInGuild:(NSString *)guildID name:(NSString *)name type:(nullable NSNumber *)type topic:(nullable NSString *)topic auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+// Forum helper
+- (void)createForumPostInChannel:(NSString *)channelID title:(NSString *)title messageJSON:(NSDictionary *)message appliedTagIds:(nullable NSArray<NSString*> *)tagIds completion:(CLMRESTCompletion)completion;
 // Guild Roles
 - (void)listRolesInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion;
 - (void)createRoleInGuild:(NSString *)guildID name:(NSString *)name completion:(CLMRESTCompletion)completion;
@@ -113,6 +120,12 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)modifyEmojiInGuild:(NSString *)guildID emojiID:(NSString *)emojiID name:(nullable NSString *)name roles:(nullable NSArray<NSString *> *)roles auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)deleteEmojiInGuild:(NSString *)guildID emojiID:(NSString *)emojiID completion:(CLMRESTCompletion)completion;
 - (void)deleteEmojiInGuild:(NSString *)guildID emojiID:(NSString *)emojiID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+// Application Emojis
+- (void)listApplicationEmojis:(NSString *)applicationID completion:(CLMRESTCompletion)completion;
+- (void)getApplicationEmoji:(NSString *)applicationID emojiID:(NSString *)emojiID completion:(CLMRESTCompletion)completion;
+- (void)createApplicationEmoji:(NSString *)applicationID name:(NSString *)name imageDataURI:(NSString *)imageDataURI completion:(CLMRESTCompletion)completion;
+- (void)modifyApplicationEmoji:(NSString *)applicationID emojiID:(NSString *)emojiID name:(nullable NSString *)name completion:(CLMRESTCompletion)completion;
+- (void)deleteApplicationEmoji:(NSString *)applicationID emojiID:(NSString *)emojiID completion:(CLMRESTCompletion)completion;
 // Stickers
 - (void)listStickersInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion;
 - (void)getStickerInGuild:(NSString *)guildID stickerID:(NSString *)stickerID completion:(CLMRESTCompletion)completion;
@@ -152,6 +165,13 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)createFollowupMessageForApplication:(NSString *)applicationID token:(NSString *)token json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 - (void)editFollowupMessageForApplication:(NSString *)applicationID token:(NSString *)token messageID:(NSString *)messageID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 - (void)deleteFollowupMessageForApplication:(NSString *)applicationID token:(NSString *)token messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion;
+// Interaction Initial Response (callbacks)
+- (void)createInteractionCallbackWithID:(NSString *)interactionID token:(NSString *)token json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
+// Convenience helpers
+- (void)deferUpdateForInteractionID:(NSString *)interactionID token:(NSString *)token completion:(CLMRESTCompletion)completion; // type 6
+- (void)updateMessageForInteractionID:(NSString *)interactionID token:(NSString *)token json:(NSDictionary *)data completion:(CLMRESTCompletion)completion; // type 7
+- (void)replyToInteractionWithMessage:(NSString *)interactionID token:(NSString *)token json:(NSDictionary *)data completion:(CLMRESTCompletion)completion; // type 4
+- (void)presentModalForInteractionID:(NSString *)interactionID token:(NSString *)token json:(NSDictionary *)data completion:(CLMRESTCompletion)completion; // type 9
 // Audit Log
 - (void)getGuildAuditLog:(NSString *)guildID userID:(nullable NSString *)userID actionType:(nullable NSNumber *)actionType before:(nullable NSString *)before limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
 // Scheduled Events

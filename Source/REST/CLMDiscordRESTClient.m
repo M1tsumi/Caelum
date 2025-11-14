@@ -220,6 +220,21 @@
     [self performRequest:req completion:completion];
 }
 
+- (void)modifyChannelWithID:(NSString *)channelID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+- (void)modifyChannelWithID:(NSString *)channelID json:(NSDictionary *)json auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = json ?: @{};
+    req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
 - (void)deleteChannelWithID:(NSString *)channelID completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"channels/%@", channelID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
@@ -375,6 +390,18 @@
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
     req.jsonBody = body;
     req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
+// Forum: Create initial post (thread) in a forum channel
+- (void)createForumPostInChannel:(NSString *)channelID title:(NSString *)title messageJSON:(NSDictionary *)message appliedTagIds:(NSArray<NSString*> *)tagIds completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/threads", channelID];
+    NSMutableDictionary *body = [NSMutableDictionary dictionary];
+    if (title.length > 0) { body[@"name"] = title; }
+    if (tagIds.count > 0) { body[@"applied_tags"] = tagIds; }
+    if (message.count > 0) { body[@"message"] = message; }
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = body;
     [self performRequest:req completion:completion];
 }
 
@@ -754,6 +781,44 @@
     [self performRequest:req completion:completion];
 }
 
+// Application Emojis
+- (void)listApplicationEmojis:(NSString *)applicationID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/emojis", applicationID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getApplicationEmoji:(NSString *)applicationID emojiID:(NSString *)emojiID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/emojis/%@", applicationID, emojiID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)createApplicationEmoji:(NSString *)applicationID name:(NSString *)name imageDataURI:(NSString *)imageDataURI completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/emojis", applicationID];
+    NSMutableDictionary *body = [NSMutableDictionary new];
+    if (name.length) body[@"name"] = name;
+    if (imageDataURI.length) body[@"image"] = imageDataURI;
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = body;
+    [self performRequest:req completion:completion];
+}
+
+- (void)modifyApplicationEmoji:(NSString *)applicationID emojiID:(NSString *)emojiID name:(NSString *)name completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/emojis/%@", applicationID, emojiID];
+    NSMutableDictionary *body = [NSMutableDictionary new];
+    if (name.length) body[@"name"] = name;
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = body;
+    [self performRequest:req completion:completion];
+}
+
+- (void)deleteApplicationEmoji:(NSString *)applicationID emojiID:(NSString *)emojiID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/emojis/%@", applicationID, emojiID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
 // Stickers
 - (void)listStickersInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"guilds/%@/stickers", guildID];
@@ -1055,6 +1120,35 @@
     [self performRequest:req completion:completion];
 }
 
+// Interaction Initial Response (callbacks)
+- (void)createInteractionCallbackWithID:(NSString *)interactionID token:(NSString *)token json:(NSDictionary *)json completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"interactions/%@/%@/callback", interactionID, token];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+// Convenience helpers
+- (void)deferUpdateForInteractionID:(NSString *)interactionID token:(NSString *)token completion:(CLMRESTCompletion)completion {
+    NSDictionary *payload = @{ @"type": @6 };
+    [self createInteractionCallbackWithID:interactionID token:token json:payload completion:completion];
+}
+
+- (void)updateMessageForInteractionID:(NSString *)interactionID token:(NSString *)token json:(NSDictionary *)data completion:(CLMRESTCompletion)completion {
+    NSDictionary *payload = @{ @"type": @7, @"data": (data ?: @{}) };
+    [self createInteractionCallbackWithID:interactionID token:token json:payload completion:completion];
+}
+
+- (void)replyToInteractionWithMessage:(NSString *)interactionID token:(NSString *)token json:(NSDictionary *)data completion:(CLMRESTCompletion)completion {
+    NSDictionary *payload = @{ @"type": @4, @"data": (data ?: @{}) };
+    [self createInteractionCallbackWithID:interactionID token:token json:payload completion:completion];
+}
+
+- (void)presentModalForInteractionID:(NSString *)interactionID token:(NSString *)token json:(NSDictionary *)data completion:(CLMRESTCompletion)completion {
+    NSDictionary *payload = @{ @"type": @9, @"data": (data ?: @{}) };
+    [self createInteractionCallbackWithID:interactionID token:token json:payload completion:completion];
+}
+
 // Audit Log
 - (void)getGuildAuditLog:(NSString *)guildID userID:(NSString *)userID actionType:(NSNumber *)actionType before:(NSString *)before limit:(NSNumber *)limit completion:(CLMRESTCompletion)completion {
     NSMutableArray<NSString *> *parts = [NSMutableArray array];
@@ -1193,6 +1287,27 @@
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
     req.jsonBody = json ?: @{};
     req.files = files;
+    [self performRequest:req completion:completion];
+}
+
+// Polls
+- (void)sendMessageWithPollInChannel:(NSString *)channelID content:(NSString *)content pollJSON:(NSDictionary *)pollJSON completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages", channelID];
+    NSMutableDictionary *body = [NSMutableDictionary new];
+    if (content.length) body[@"content"] = content;
+    if (pollJSON.count) body[@"poll"] = pollJSON;
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = body;
+    [self performRequest:req completion:completion];
+}
+
+- (void)getPollAnswerUsersInChannel:(NSString *)channelID messageID:(NSString *)messageID answerID:(NSString *)answerID after:(NSString *)after limit:(NSNumber *)limit completion:(CLMRESTCompletion)completion {
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    if (after.length > 0) { [parts addObject:[NSString stringWithFormat:@"after=%@", after]]; }
+    if (limit) { [parts addObject:[NSString stringWithFormat:@"limit=%@", limit]]; }
+    NSString *query = parts.count ? [@"?" stringByAppendingString:[parts componentsJoinedByString:@"&"]] : @"";
+    NSString *route = [NSString stringWithFormat:@"channels/%@/polls/%@/answers/%@/voters%@", channelID, messageID, answerID, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
     [self performRequest:req completion:completion];
 }
 

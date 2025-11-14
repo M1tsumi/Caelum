@@ -18,6 +18,34 @@
 #import "Gateway/CLMDiscordGatewayClient.h"
 // Models
 #import "Models/CLMSnowflake.h"
+// Components & Interactions
+#import "Models/Components/CLMComponents.h"
+#import "Models/Components/CLMButton.h"
+#import "Models/Components/CLMSelectMenu.h"
+#import "Models/Components/CLMSelectMenuOption.h"
+#import "Models/Components/CLMActionRow.h"
+#import "Models/Components/CLMTextInput.h"
+#import "Models/Interactions/CLMComponentInteraction.h"
+// AutoMod
+#import "Models/AutoMod/CLMAutoModAction.h"
+#import "Models/AutoMod/CLMAutoModTrigger.h"
+#import "Models/AutoMod/CLMAutoModRule.h"
+// Localization
+#import "Models/Localization/CLMLocale.h"
+#import "Models/Localization/CLMLocalizedString.h"
+// Forum
+#import "Models/Forum/CLMForumChannel.h"
+#import "Models/Forum/CLMForumTag.h"
+// Polls
+#import "Models/Polls/CLMPoll.h"
+#import "Models/Polls/CLMPollAnswer.h"
 // Client
 #import "Client/CLMDiscordClient.h"
 #import "Client/CLMClientConfiguration.h"
+// Commands (scaffolding)
+#import "Commands/CLMCommand.h"
+#import "Commands/CLMCommandContext.h"
+#import "Commands/CLMCommandRouter.h"
+#import "Commands/CLMCommandCooldownManager.h"
+#import "Commands/CLMCommandPermissionChecker.h"
+

@@ -10,6 +10,9 @@ typedef NS_OPTIONS(NSUInteger, CLMIntents) {
 @property (nonatomic) NSUInteger largeThreshold;
 @property (nonatomic, strong) NSURL *gatewayURL; // e.g. wss://gateway.discord.gg/?v=10&encoding=json
 @property (nonatomic, weak, nullable) id<CLMTokenProvider> tokenProvider;
+// Sharding
+@property (nonatomic) NSInteger shardId;      // default -1 (unset)
+@property (nonatomic) NSInteger shardCount;   // default 0 (unset)
 + (instancetype)defaultConfiguration;
 @end
 NS_ASSUME_NONNULL_END
