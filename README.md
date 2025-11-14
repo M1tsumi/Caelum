@@ -203,13 +203,6 @@ CLMRESTFilePart *file = [CLMRESTFilePart partWithField:@"files[0]" filename:@"he
 - ✅ Application Emoji management
 - ⛔ Voice features intentionally not implemented yet
 
-## Roadmap
-See `plan.txt` for the detailed plan. High‑level milestones:
-- M0: Scaffold, logging, error domain
-- M1: REST MVP (auth, core endpoints, rate limits)
-- M2: Gateway MVP (connect, identify, heartbeat, dispatch)
-- M3: Stabilization, docs, examples
-- M4: Packaging (Pods/Carthage/SPM) and CI
 
 ## Community
 - Discord: https://discord.gg/KzFY5zEja4
