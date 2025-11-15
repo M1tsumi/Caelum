@@ -52,6 +52,8 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 // Messages with attachments
 - (void)sendMessageInChannel:(NSString *)channelID json:(NSDictionary *)json files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
 - (void)editMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID json:(NSDictionary *)json files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
+// Message crosspost
+- (void)crosspostMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion;
 // Polls
 - (void)sendMessageWithPollInChannel:(NSString *)channelID content:(nullable NSString *)content pollJSON:(NSDictionary *)pollJSON completion:(CLMRESTCompletion)completion;
 - (void)getPollAnswerUsersInChannel:(NSString *)channelID messageID:(NSString *)messageID answerID:(NSString *)answerID after:(nullable NSString *)after limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
@@ -85,13 +87,27 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 // Guild Bans
 - (void)banUserInGuild:(NSString *)guildID userID:(NSString *)userID deleteMessageSeconds:(nullable NSNumber *)deleteMessageSeconds auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)unbanUserInGuild:(NSString *)guildID userID:(NSString *)userID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+- (void)listBansInGuild:(NSString *)guildID limit:(nullable NSNumber *)limit before:(nullable NSString *)before after:(nullable NSString *)after completion:(CLMRESTCompletion)completion;
+- (void)getBanInGuild:(NSString *)guildID userID:(NSString *)userID completion:(CLMRESTCompletion)completion;
+// Reactions (additional management)
+- (void)getReactionsInChannel:(NSString *)channelID messageID:(NSString *)messageID emoji:(NSString *)emoji after:(nullable NSString *)after limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
+- (void)removeUserReactionInChannel:(NSString *)channelID messageID:(NSString *)messageID emoji:(NSString *)emoji userID:(NSString *)userID completion:(CLMRESTCompletion)completion;
+- (void)deleteAllReactionsInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion;
+- (void)deleteAllReactionsForEmojiInChannel:(NSString *)channelID messageID:(NSString *)messageID emoji:(NSString *)emoji completion:(CLMRESTCompletion)completion;
 // Webhooks
 - (void)modifyWebhookWithID:(NSString *)webhookID name:(nullable NSString *)name channelID:(nullable NSString *)channelID completion:(CLMRESTCompletion)completion;
 - (void)modifyWebhookWithID:(NSString *)webhookID name:(nullable NSString *)name channelID:(nullable NSString *)channelID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)deleteWebhookWithID:(NSString *)webhookID completion:(CLMRESTCompletion)completion;
 - (void)deleteWebhookWithID:(NSString *)webhookID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+- (void)listWebhooksInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)getWebhookWithID:(NSString *)webhookID completion:(CLMRESTCompletion)completion;
+- (void)getWebhookWithToken:(NSString *)webhookID token:(NSString *)token completion:(CLMRESTCompletion)completion;
+- (void)modifyWebhookWithToken:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
+- (void)deleteWebhookWithToken:(NSString *)webhookID token:(NSString *)token completion:(CLMRESTCompletion)completion;
 // Webhook execute
 - (void)executeWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
+// Webhook execute options
+- (void)executeWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json threadID:(nullable NSString *)threadID wait:(nullable NSNumber *)wait files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
 // Invites
 - (void)createInviteInChannel:(NSString *)channelID maxAge:(nullable NSNumber *)maxAge maxUses:(nullable NSNumber *)maxUses temporary:(nullable NSNumber *)temporary unique:(nullable NSNumber *)unique completion:(CLMRESTCompletion)completion;
 - (void)createInviteInChannel:(NSString *)channelID maxAge:(nullable NSNumber *)maxAge maxUses:(nullable NSNumber *)maxUses temporary:(nullable NSNumber *)temporary unique:(nullable NSNumber *)unique auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
@@ -158,6 +174,8 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)listPrivateArchivedThreadsInChannel:(NSString *)channelID before:(nullable NSString *)before limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
 - (void)listJoinedPrivateArchivedThreadsInChannel:(NSString *)channelID before:(nullable NSString *)before limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
 - (void)listActiveThreadsInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)getThreadMember:(NSString *)threadID userID:(NSString *)userID withMember:(nullable NSNumber *)withMember completion:(CLMRESTCompletion)completion;
+- (void)listThreadMembers:(NSString *)threadID withMember:(nullable NSNumber *)withMember completion:(CLMRESTCompletion)completion;
 // Interaction Followups (webhooks)
 - (void)getOriginalInteractionResponseForApplication:(NSString *)applicationID token:(NSString *)token completion:(CLMRESTCompletion)completion;
 - (void)editOriginalInteractionResponseForApplication:(NSString *)applicationID token:(NSString *)token json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
@@ -179,10 +197,12 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)createGuildScheduledEvent:(NSString *)guildID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 - (void)modifyGuildScheduledEvent:(NSString *)guildID eventID:(NSString *)eventID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 - (void)deleteGuildScheduledEvent:(NSString *)guildID eventID:(NSString *)eventID completion:(CLMRESTCompletion)completion;
+- (void)listGuildScheduledEventUsers:(NSString *)guildID eventID:(NSString *)eventID withMember:(nullable NSNumber *)withMember before:(nullable NSString *)before after:(nullable NSString *)after limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
 // Stage Instances
 - (void)createStageInstanceWithChannelID:(NSString *)channelID topic:(NSString *)topic privacyLevel:(nullable NSNumber *)privacyLevel completion:(CLMRESTCompletion)completion;
 - (void)modifyStageInstanceWithChannelID:(NSString *)channelID topic:(nullable NSString *)topic privacyLevel:(nullable NSNumber *)privacyLevel completion:(CLMRESTCompletion)completion;
 - (void)deleteStageInstanceWithChannelID:(NSString *)channelID completion:(CLMRESTCompletion)completion;
+- (void)getStageInstanceWithChannelID:(NSString *)channelID completion:(CLMRESTCompletion)completion;
 // Auto Moderation Rules
 - (void)listAutoModRulesInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion;
 - (void)getAutoModRuleInGuild:(NSString *)guildID ruleID:(NSString *)ruleID completion:(CLMRESTCompletion)completion;

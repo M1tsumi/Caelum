@@ -19,11 +19,20 @@ Clean, fast, and fully Objective‑C‑native library for the Discord Gateway (v
 
 ## Features
 - **Objective‑C first**. No Swift dependencies in the core library.
-- **Gateway v10**. Identify, heartbeat (HELLO/ACK), intents, and dispatch routing.
-- **REST client**. Core endpoints for application, user, channels, guilds, and sending messages.
+- **Gateway v10**. Identify, Hello, Heartbeat/ACK, Dispatch routing, READY session capture, Resume, Reconnect, Invalid Session handling.
+- **Sharding**. `CLMShardManager` orchestration and shard‑aware delegate callbacks.
+- **REST v10**. Broad endpoint coverage for Users, Channels, Messages, Reactions, Threads, Webhooks, Guilds, Members, Roles, Bans, Emojis/Stickers, Invites, Application Commands, Interactions, Audit Log, Scheduled Events, Stage Instances, Templates, Welcome Screen, Onboarding, Polls, Forum. See Coverage Matrix below.
+- **Interactions & Components**. Callbacks, followups, modals (Text Inputs), buttons, select menus, action rows.
+- **File uploads**. Multipart attachments for messages and webhooks.
 - **Rate limits**. Per‑bucket handling, global 429 backoff, retries with jitter.
+- **Presence & Member Chunking**. Presence update (OP 3) and guild member chunk requests (OP 8).
+- **Application Emoji**. Models and REST CRUD for application‑scoped emojis.
+- **AutoMod**. Rules, triggers, actions models and endpoints.
+- **Localization**. Locale constants and localized strings model.
+- **Developer experience**. Caching (`CLMCacheManager`/`CLMCachePolicy`) and `CLMEventCenter` (block‑based listeners).
 - **Threading**. Structured queues for I/O, parsing, and state mutation.
 - **Extensible**. Protocols for logging, token provision, storage, and clock.
+- **Voice**. Voice state modifications only; no voice send/receive (media transport excluded).
 
 ## Phase 4/5 Highlights
 - **Application Emoji**: Models and REST CRUD helpers for application-scoped emojis.
@@ -137,6 +146,9 @@ emoji.imageBase64 = base64PNG; // data:image/png;base64,...
 - Guild members pagination: use `listMembersInGuild:limit:after:` and pass the last member ID to `after` for the next page.
 
 ## Coverage (Discord API v10)
+
+The following surfaces are implemented via REST v10. Voice send/receive are intentionally excluded (see note below).
+
 - Users: current user, get user.
 - Channels: get/modify/delete, typing, webhooks list/create/modify/delete, permission overwrites.
 - Messages: list/send/edit/delete, reactions add/remove own, bulk delete, pins list/pin/unpin, attachments (multipart).
@@ -145,11 +157,75 @@ emoji.imageBase64 = base64PNG; // data:image/png;base64,...
 - Emojis/Stickers: list/get/create/modify/delete.
 - Invites: create/get/delete, list by channel/guild.
 - Application commands: global/guild list/create/edit/delete.
+- Interactions: callbacks, followups, edit/delete original response.
 - Audit log: fetch with filters.
 - Scheduled events: list/create/modify/delete.
 - Stage instances: create/modify/delete.
-- Voice state: modify self/other in guild.
-- Rate limits: 429 surfaced with retry headers in error userInfo.
+- Voice state: modify self/other in guild (no voice media transport).
+- Rate limits: 429 surfaced with retry headers in error userInfo; per-endpoint buckets with backoff and jitter.
+
+### Gateway v10 details
+
+- Identify (OP 2): token, intents, properties, sharding tuple when configured.
+- Hello (OP 10): starts heartbeat using server-provided interval.
+- Heartbeat (OP 1) and ACK (OP 11): maintains sequence state; basic latency hooks available.
+- Dispatch (OP 0): routes all events; typed helpers for interactions and guild member chunks.
+- Resume (OP 6): automatic when `session_id` and sequence are present.
+- Reconnect (OP 7): closes and reconnects automatically, preserving session for resume.
+- Invalid Session (OP 9): conditional resume; falls back to fresh Identify with 1–4s jitter.
+- READY: captures and persists `session_id`.
+- Sharding: `CLMShardManager` starts N shards, forwards connect/disconnect/dispatch with shard id.
+
+## Coverage Matrix
+
+### REST v10
+
+| Category | Status | Notes |
+|---|---|---|
+| Users | ✅ | `GET /users/@me`, `GET /users/{id}` |
+| Channels | ✅ | Get/modify/delete, typing |
+| Messages | ✅ | List/send/edit/delete; attachments (multipart) |
+| Reactions | ✅ | Add/remove own; list users; remove user; delete all; delete by emoji |
+| Threads | ✅ | Start (from message/without), join/leave, add/remove member, list archived/joined/active |
+| Webhooks | ✅ | Channel/guild list/create/modify/delete, get (id/token), modify/delete with token, execute (+thread_id, wait) |
+| Guilds | ✅ | Get/modify, list channels/members, widget, vanity, integrations, prune count/start |
+| Guild Members | ✅ | Get/modify/kick, add/remove role, search |
+| Roles | ✅ | List/create/delete |
+| Bans | ✅ | Ban/unban, list/get |
+| Emojis | ✅ | Guild list/get/create/modify/delete |
+| Stickers | ✅ | Guild/global get/list/create/modify/delete; packs list |
+| Application Emojis | ✅ | List/get/create/modify/delete |
+| Invites | ✅ | Create/list/get/delete |
+| Application Commands | ✅ | Global/guild list/create/edit/delete |
+| Interactions | ✅ | Callbacks (type 4/6/7/9), original and followup messages CRUD |
+| Audit Log | ✅ | Fetch with filters |
+| Scheduled Events | ✅ | List/create/modify/delete; list users |
+| Stage Instances | ✅ | Create/modify/delete/get |
+| Voice State | ✅ | Modify self/other in guild; no media transport |
+| Templates | ✅ | List/get/create/modify/sync/delete |
+| Welcome Screen | ✅ | Get/modify |
+| Onboarding | ✅ | Get/modify |
+| Polls | ✅ | Send messages with polls; fetch voters |
+| Forum | ✅ | Create forum post with tags |
+
+### Gateway v10
+
+| Operation/Event | Status | Notes |
+|---|---|---|
+| Identify (OP 2) | ✅ | Token, intents, properties, sharding |
+| Hello (OP 10) | ✅ | Starts heartbeat interval |
+| Heartbeat (OP 1) | ✅ | Sends with last sequence |
+| Heartbeat ACK (OP 11) | ✅ | Latency hooks possible |
+| Dispatch (OP 0) | ✅ | Routing, typed helpers (interactions, members chunk) |
+| READY | ✅ | Captures `session_id` |
+| RESUME (OP 6) | ✅ | Auto when session/seq present |
+| RECONNECT (OP 7) | ✅ | Closes and reconnects; preserves session |
+| INVALID_SESSION (OP 9) | ✅ | Conditional resume; jittered re-identify |
+| Presence Update (OP 3) | ✅ | `sendPresenceUpdate:` helper |
+| Request Guild Members (OP 8) | ✅ | `requestGuildMembers:...` helper |
+| Sharding | ✅ | `CLMShardManager` and shard-aware delegate callbacks |
+
+Note: Voice send/receive is intentionally excluded.
 
 ### Additional Coverage (New)
 - Interactions: callbacks, followups, modals (Text Inputs), components (Buttons, Select Menus, Action Rows).
@@ -201,7 +277,7 @@ CLMRESTFilePart *file = [CLMRESTFilePart partWithField:@"files[0]" filename:@"he
 - ✅ Caching layer and event listeners
 - ✅ Forum channels, Polls, Localization, AutoMod
 - ✅ Application Emoji management
-- ⛔ Voice features intentionally not implemented yet
+- ⛔ Voice features intentionally not implemented yet (no voice send/receive)
 
 
 ## Community

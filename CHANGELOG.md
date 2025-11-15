@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to Semantic Versioning once stable.
 
+## [v0.1.1 - 2025-11-15]
+### Added
+- Gateway: READY session capture, RESUME (OP 6), RECONNECT (OP 7), INVALID_SESSION (OP 9) with 1–4s jitter re-identify, and auto-reconnect behavior.
+- REST: Additional v10 endpoints for parity (non-voice):
+  - Guild bans list/get
+  - Webhooks: list in guild, get (id), get/modify/delete with token, execute options (thread_id, wait)
+  - Reactions: list users, remove user, delete all, delete all for emoji
+  - Threads: get/list thread members
+  - Messages: crosspost
+  - Scheduled events: list users
+  - Stage instances: get
+  - Stickers: list sticker packs
+### Changed
+- README: Added full Coverage Matrix for REST v10 and Gateway v10; expanded Gateway details; clarified voice send/receive exclusion.
+- REST headers: fixed stray top-of-file declaration in `CLMDiscordRESTClient.h`.
+
 ## [v0.1.0 - 2025-11-14]
 ### Added
 - Gateway: Implemented `NSURLSessionWebSocketTask` connection with JSON handling.

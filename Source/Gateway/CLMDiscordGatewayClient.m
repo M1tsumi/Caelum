@@ -16,6 +16,7 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
 @property (nonatomic, strong, nullable) NSTimer *heartbeatTimer;
 @property (nonatomic, copy, nullable) NSString *sessionID;
 @property (nonatomic, assign) NSInteger lastSequence;
+@property (nonatomic, assign) BOOL shouldReconnect;
 @end
 
 @implementation CLMDiscordGatewayClient {
@@ -30,6 +31,7 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
         _socket = [[CLMWebSocketConnection alloc] initWithSessionConfiguration:cfg];
         _socket.delegate = self;
         _lastSequence = -1;
+        _shouldReconnect = NO;
     }
     return self;
 }
@@ -40,12 +42,14 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     NSMutableDictionary *headers = [NSMutableDictionary dictionary];
     // No Authorization header for Gateway; token goes in Identify payload
     [self.socket connectWithURL:url headers:headers];
+    self.shouldReconnect = YES;
 }
 
 - (void)disconnect {
     [self.heartbeatTimer invalidate];
     self.heartbeatTimer = nil;
     [self.socket close];
+    self.shouldReconnect = NO;
 }
 
 #pragma mark - Identify & Heartbeat
@@ -63,6 +67,17 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
         data[@"shard"] = @[ @(_config.shardId), @(_config.shardCount) ];
     }
     NSDictionary *payload = @{ @"op": @(CLMGatewayOpIdentify), @"d": data };
+    [self.socket sendJSONObject:payload];
+}
+
+- (void)sendResume {
+    NSString *token = [_config.tokenProvider botToken];
+    if (token.length == 0 || self.sessionID.length == 0) { return; }
+    NSInteger seq = self.lastSequence;
+    NSDictionary *data = @{ @"token": token,
+                             @"session_id": self.sessionID,
+                             @"seq": (seq >= 0 ? @(seq) : [NSNull null]) };
+    NSDictionary *payload = @{ @"op": @6, @"d": data };
     [self.socket sendJSONObject:payload];
 }
 
@@ -121,6 +136,13 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
         NSError *err = [NSError errorWithDomain:@"com.caelum.discord" code:code userInfo:@{NSLocalizedDescriptionKey: reason ?: @"Closed"}];
         [self.delegate gateway:self didDisconnectWithError:err shardId:self.shardId];
     }
+    [self.heartbeatTimer invalidate];
+    self.heartbeatTimer = nil;
+    if (self.shouldReconnect) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [self connect];
+        });
+    }
 }
 
 - (void)webSocketDidError:(NSError *)error {
@@ -139,10 +161,40 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
         case CLMGatewayOpHello: {
             NSInteger hb = [d[@"heartbeat_interval"] integerValue];
             [self startHeartbeatWithIntervalMS:hb];
-            [self sendIdentify];
+            if (self.sessionID.length > 0 && self.lastSequence >= 0) {
+                [self sendResume];
+            } else {
+                [self sendIdentify];
+            }
         } break;
         case CLMGatewayOpHeartbeatAck: {
             // ACK received; for now we don't track latency
+        } break;
+        case 7: { // RECONNECT
+            // Server asks us to reconnect. Close and reconnect.
+            [self.heartbeatTimer invalidate];
+            self.heartbeatTimer = nil;
+            [self.socket close];
+            if (self.shouldReconnect) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(500 * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
+                    [self connect];
+                });
+            }
+        } break;
+        case 9: { // INVALID_SESSION
+            BOOL resumable = NO;
+            if ([d isKindOfClass:[NSNumber class]]) { resumable = [((NSNumber *)d) boolValue]; }
+            // Jitter 1-4 seconds per Discord docs
+            uint32_t delayMs = (arc4random_uniform(4) + 1) * 1000;
+            dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delayMs * NSEC_PER_MSEC)), dispatch_get_main_queue(), ^{
+                if (resumable && self.sessionID.length > 0 && self.lastSequence >= 0) {
+                    [self sendResume];
+                } else {
+                    self.sessionID = nil;
+                    self.lastSequence = -1;
+                    [self sendIdentify];
+                }
+            });
         } break;
         case CLMGatewayOpDispatch: {
             if ([self.delegate respondsToSelector:@selector(gatewayDidReceiveDispatch:payload:)]) {
@@ -152,6 +204,14 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
                 [self.delegate gateway:self didReceiveDispatch:(t ?: @"") payload:(d ?: @{}) shardId:self.shardId];
             }
             if ([t isKindOfClass:[NSString class]]) {
+                if ([t isEqualToString:@"READY"]) {
+                    if ([d isKindOfClass:[NSDictionary class]]) {
+                        NSString *sid = [(NSDictionary *)d objectForKey:@"session_id"];
+                        if ([sid isKindOfClass:[NSString class]] && sid.length > 0) {
+                            self.sessionID = sid;
+                        }
+                    }
+                }
                 if ([t isEqualToString:@"INTERACTION_CREATE"] || [t isEqualToString:@"MODAL_SUBMIT"]) {
                     if ([d isKindOfClass:[NSDictionary class]]) {
                         CLMComponentInteraction *interaction = [CLMComponentInteraction fromGatewayPayload:(NSDictionary *)d];

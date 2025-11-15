@@ -1388,3 +1388,151 @@
 }
 
 @end
+ 
+@implementation CLMDiscordRESTClient (AdditionalCoverage)
+
+// Guild Bans (list/get)
+- (void)listBansInGuild:(NSString *)guildID limit:(NSNumber *)limit before:(NSString *)before after:(NSString *)after completion:(CLMRESTCompletion)completion {
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    if (limit) { [parts addObject:[NSString stringWithFormat:@"limit=%@", limit]]; }
+    if (before.length > 0) { [parts addObject:[NSString stringWithFormat:@"before=%@", before]]; }
+    if (after.length > 0) { [parts addObject:[NSString stringWithFormat:@"after=%@", after]]; }
+    NSString *query = parts.count ? [@"?" stringByAppendingString:[parts componentsJoinedByString:@"&"]] : @"";
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/bans%@", guildID, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getBanInGuild:(NSString *)guildID userID:(NSString *)userID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/bans/%@", guildID, userID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Webhooks (guild list/get/with-token)
+- (void)listWebhooksInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/webhooks", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getWebhookWithID:(NSString *)webhookID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"webhooks/%@", webhookID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getWebhookWithToken:(NSString *)webhookID token:(NSString *)token completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"webhooks/%@/%@", webhookID, token];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)modifyWebhookWithToken:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"webhooks/%@/%@", webhookID, token];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+- (void)deleteWebhookWithToken:(NSString *)webhookID token:(NSString *)token completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"webhooks/%@/%@", webhookID, token];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Webhook execute options
+- (void)executeWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json threadID:(NSString *)threadID wait:(NSNumber *)wait files:(NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion {
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    if (threadID.length > 0) { [parts addObject:[NSString stringWithFormat:@"thread_id=%@", threadID]]; }
+    if (wait) { [parts addObject:[NSString stringWithFormat:@"wait=%@", wait]]; }
+    NSString *query = parts.count ? [@"?" stringByAppendingString:[parts componentsJoinedByString:@"&"]] : @"";
+    NSString *route = [NSString stringWithFormat:@"webhooks/%@/%@%@", webhookID, token, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = json ?: @{};
+    req.files = files;
+    [self performRequest:req completion:completion];
+}
+
+// Message crosspost
+- (void)crosspostMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@/crosspost", channelID, messageID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Reactions management
+- (void)getReactionsInChannel:(NSString *)channelID messageID:(NSString *)messageID emoji:(NSString *)emoji after:(NSString *)after limit:(NSNumber *)limit completion:(CLMRESTCompletion)completion {
+    NSString *encodedEmoji = [emoji stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]] ?: emoji;
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    if (after.length > 0) { [parts addObject:[NSString stringWithFormat:@"after=%@", after]]; }
+    if (limit) { [parts addObject:[NSString stringWithFormat:@"limit=%@", limit]]; }
+    NSString *query = parts.count ? [@"?" stringByAppendingString:[parts componentsJoinedByString:@"&"]] : @"";
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@/reactions/%@%@", channelID, messageID, encodedEmoji, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)removeUserReactionInChannel:(NSString *)channelID messageID:(NSString *)messageID emoji:(NSString *)emoji userID:(NSString *)userID completion:(CLMRESTCompletion)completion {
+    NSString *encodedEmoji = [emoji stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]] ?: emoji;
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@/reactions/%@/%@", channelID, messageID, encodedEmoji, userID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)deleteAllReactionsInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@/reactions", channelID, messageID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)deleteAllReactionsForEmojiInChannel:(NSString *)channelID messageID:(NSString *)messageID emoji:(NSString *)emoji completion:(CLMRESTCompletion)completion {
+    NSString *encodedEmoji = [emoji stringByAddingPercentEncodingWithAllowedCharacters:[NSCharacterSet URLQueryAllowedCharacterSet]] ?: emoji;
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@/reactions/%@", channelID, messageID, encodedEmoji];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Thread members get/list
+- (void)getThreadMember:(NSString *)threadID userID:(NSString *)userID withMember:(NSNumber *)withMember completion:(CLMRESTCompletion)completion {
+    NSString *query = withMember ? [NSString stringWithFormat:@"?with_member=%@", withMember] : @"";
+    NSString *route = [NSString stringWithFormat:@"channels/%@/thread-members/%@%@", threadID, userID, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)listThreadMembers:(NSString *)threadID withMember:(NSNumber *)withMember completion:(CLMRESTCompletion)completion {
+    NSString *query = withMember ? [NSString stringWithFormat:@"?with_member=%@", withMember] : @"";
+    NSString *route = [NSString stringWithFormat:@"channels/%@/thread-members%@", threadID, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Scheduled Event users list
+- (void)listGuildScheduledEventUsers:(NSString *)guildID eventID:(NSString *)eventID withMember:(NSNumber *)withMember before:(NSString *)before after:(NSString *)after limit:(NSNumber *)limit completion:(CLMRESTCompletion)completion {
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    if (withMember) { [parts addObject:[NSString stringWithFormat:@"with_member=%@", withMember]]; }
+    if (before.length > 0) { [parts addObject:[NSString stringWithFormat:@"before=%@", before]]; }
+    if (after.length > 0) { [parts addObject:[NSString stringWithFormat:@"after=%@", after]]; }
+    if (limit) { [parts addObject:[NSString stringWithFormat:@"limit=%@", limit]]; }
+    NSString *query = parts.count ? [@"?" stringByAppendingString:[parts componentsJoinedByString:@"&"]] : @"";
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/scheduled-events/%@/users%@", guildID, eventID, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Stage instance get
+- (void)getStageInstanceWithChannelID:(NSString *)channelID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"stage-instances/%@", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Sticker packs
+- (void)listStickerPacks:(CLMRESTCompletion)completion {
+    NSString *route = @"sticker-packs";
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+@end
