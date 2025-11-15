@@ -9,7 +9,7 @@ Clean, fast, and fully Objective‑C‑native library for the Discord Gateway (v
 [![CI](https://github.com/M1tsumi/Caelum/actions/workflows/ci.yml/badge.svg)](https://github.com/M1tsumi/Caelum/actions/workflows/ci.yml)
 
 <div align="center" style="margin: 8px 0 0 0;">
-  <a href="https://discord.gg/KzFY5zEja4" target="_blank" rel="noopener noreferrer">
+  <a href="https://discord.gg/6nS2KqxQtj" target="_blank" rel="noopener noreferrer">
     <button style="background:#5865F2;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;">Join our Discord</button>
   </a>
   <br/>
@@ -281,7 +281,7 @@ CLMRESTFilePart *file = [CLMRESTFilePart partWithField:@"files[0]" filename:@"he
 
 
 ## Community
-- Discord: https://discord.gg/KzFY5zEja4
+- Discord: https://discord.gg/6nS2KqxQtj
 
 ## Contributing
 Contributions are welcome after initial API stabilization. Please open issues for bugs and proposals. See `CHANGELOG.md` for release notes.
