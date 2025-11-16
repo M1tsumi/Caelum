@@ -14,6 +14,9 @@ let package = Package(
         .target(
             name: "Caelum",
             path: "Source",
+            exclude: [
+                "Tests"
+            ],
             publicHeadersPath: "include",
             cSettings: [
                 .headerSearchPath("."),
@@ -22,6 +25,18 @@ let package = Package(
                 .headerSearchPath("Gateway"),
                 .headerSearchPath("Models"),
                 .headerSearchPath("Client"),
+            ]
+        ),
+        .testTarget(
+            name: "CaelumTests",
+            path: "Source/Tests",
+            cSettings: [
+                .headerSearchPath(".."),
+                .headerSearchPath("../Core"),
+                .headerSearchPath("../REST"),
+                .headerSearchPath("../Gateway"),
+                .headerSearchPath("../Models"),
+                .headerSearchPath("../Client"),
             ]
         )
     ]

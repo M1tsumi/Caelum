@@ -63,6 +63,5 @@ The format is based on Keep a Changelog and this project adheres to Semantic Ver
 - High-level project plan for an Objective-C Discord API wrapper.
 - Draft README with features, requirements, installation plan, and quickstart.
 
-[Unreleased]: https://github.com/M1tsumi/Caelum/compare/v0.1.0...HEAD
+[0.1.1]: https://github.com/M1tsumi/Caelum/releases/tag/v0.1.1
 [0.1.0]: https://github.com/M1tsumi/Caelum/releases/tag/v0.1.0
-

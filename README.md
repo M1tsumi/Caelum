@@ -50,16 +50,40 @@ Clean, fast, and fully Objective‑C‑native library for the Discord Gateway (v
 - iOS 13+ or macOS 10.15+ (for `NSURLSessionWebSocketTask`).
 - Xcode 15+ recommended.
 
+## Platform & Build Notes
+- Caelum is an Objective‑C library targeting Apple platforms (iOS and macOS).
+- You must build and run it on macOS with Xcode and the Apple SDKs installed.
+- Building on Windows or Linux with SwiftPM is not supported because the required Apple frameworks (e.g. `Foundation`) are unavailable there.
+
 ## Installation
-Packaging will be added as the API stabilizes. Planned support:
-- CocoaPods
-- Carthage
-- Swift Package Manager (Objective‑C compatible)
+### Swift Package Manager (recommended)
+Add Caelum to your `Package.swift`:
+```swift
+dependencies: [
+    .package(url: "https://github.com/M1tsumi/Caelum.git", from: "0.1.1")
+],
+targets: [
+    .target(
+        name: "YourApp",
+        dependencies: [
+            .product(name: "Caelum", package: "Caelum")
+        ]
+    )
+]
+```
+
+Then in your Objective‑C bridging header or a source file:
+```objc
+#import <Caelum/Caelum.h>
+```
+
+### Other package managers
+CocoaPods and Carthage support are planned but not yet published.
 
 ## Quickstart
 ```objc
 // Pseudo‑code (API surface may change)
-#import <Caelum/CLMDiscordClient.h>
+#import <Caelum/Caelum.h>
 
 CLMClientConfiguration *config = [CLMClientConfiguration defaultConfiguration];
 config.tokenProvider = myTokenProvider; // supply your bot token securely
