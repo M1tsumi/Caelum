@@ -33,12 +33,20 @@
 // Localization
 #import "Models/Localization/CLMLocale.h"
 #import "Models/Localization/CLMLocalizedString.h"
+// Application Emoji
+#import "Models/ApplicationEmoji/CLMApplicationEmoji.h"
 // Forum
 #import "Models/Forum/CLMForumChannel.h"
 #import "Models/Forum/CLMForumTag.h"
 // Polls
 #import "Models/Polls/CLMPoll.h"
 #import "Models/Polls/CLMPollAnswer.h"
+// Application install helpers
+#import "Models/Application/CLMApplicationInstall.h"
+// Gateway Sharding
+#import "Gateway/CLMShardManager.h"
+// Message forwarding snapshot
+#import "Models/Messages/CLMMessageSnapshot.h"
 // Client
 #import "Client/CLMDiscordClient.h"
 #import "Client/CLMClientConfiguration.h"

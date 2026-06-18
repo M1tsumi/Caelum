@@ -1,29 +1,25 @@
 #import "CLMDiscordRESTClient.h"
+#import "../Core/CLMErrors.h"
 
-@implementation CLMDiscordRESTClient {
-    NSURLSession *_session;
-}
+@implementation CLMDiscordRESTClient
 
 - (instancetype)initWithConfiguration:(CLMRESTConfiguration *)configuration {
     if ((self = [super init])) {
         _configuration = configuration;
         NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
         cfg.timeoutIntervalForRequest = configuration.timeout;
-        _session = [NSURLSession sessionWithConfiguration:cfg];
-        _session = _session; // explicitly retain
+        self->_session = [NSURLSession sessionWithConfiguration:cfg];
     }
     return self;
 }
-
-- (NSURLSession *)session { return _session; }
 
 - (void)performRequest:(CLMRESTRequest *)request completion:(CLMRESTCompletion)completion {
     // Build URL
     NSURL *url = [NSURL URLWithString:request.route relativeToURL:self.configuration.baseURL];
     if (!url) {
         CLMRESTResponse *resp = [CLMRESTResponse new];
-        resp.error = [NSError errorWithDomain:@"com.caelum.discord"
-                                         code:-1
+        resp.error = [NSError errorWithDomain:CLMErrorDomain
+                                         code:CLMErrorUnknown
                                      userInfo:@{NSLocalizedDescriptionKey: @"Invalid URL"}];
         if (completion) completion(resp);
         return;
@@ -80,6 +76,7 @@
         [bodyData appendData:[[NSString stringWithFormat:@"--%@--\r\n", boundary] dataUsingEncoding:NSUTF8StringEncoding]];
         urlRequest.HTTPBody = bodyData;
     } else if (request.jsonBody) {
+        [urlRequest setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
         NSError *encodeError = nil;
         NSData *body = [NSJSONSerialization dataWithJSONObject:request.jsonBody options:0 error:&encodeError];
         if (encodeError) {
@@ -98,8 +95,8 @@
         }
         if (error) {
             // Network/transport error
-            resp.error = [NSError errorWithDomain:@"com.caelum.discord"
-                                             code:1 /* CLMErrorNetwork */
+            resp.error = [NSError errorWithDomain:CLMErrorDomain
+                                             code:CLMErrorNetwork
                                          userInfo:@{ NSUnderlyingErrorKey: error ?: [NSNull null],
                                                      @"endpoint": request.route ?: @"",
                                                    }];
@@ -107,8 +104,8 @@
             NSError *jsonError = nil;
             id obj = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
             if (jsonError) {
-                resp.error = [NSError errorWithDomain:@"com.caelum.discord"
-                                                 code:2 /* CLMErrorDecode */
+                resp.error = [NSError errorWithDomain:CLMErrorDomain
+                                                 code:CLMErrorDecode
                                              userInfo:@{ NSUnderlyingErrorKey: jsonError,
                                                          @"endpoint": request.route ?: @"",
                                                          @"statusCode": @(resp.statusCode),
@@ -120,10 +117,10 @@
 
         // Map HTTP status codes to domain errors when applicable
         if (!resp.error && resp.statusCode >= 400) {
-            NSInteger code = 0; // CLMErrorUnknown default
-            if (resp.statusCode == 401) code = 3; // CLMErrorUnauthorized
-            else if (resp.statusCode == 429) code = 4; // CLMErrorRateLimited
-            else if (resp.statusCode >= 500) code = 7; // server generic
+            CLMErrorCode code = CLMErrorUnknown;
+            if (resp.statusCode == 401) code = CLMErrorUnauthorized;
+            else if (resp.statusCode == 429) code = CLMErrorRateLimited;
+            else if (resp.statusCode >= 500) code = CLMErrorServer;
             NSMutableDictionary *ui = [@{ @"statusCode": @(resp.statusCode),
                                           @"endpoint": request.route ?: @"",
                                         } mutableCopy];
@@ -135,7 +132,7 @@
                 id rb = headers[@"X-RateLimit-Bucket"]; if (rb) ui[@"x-ratelimit-bucket"] = rb;
                 id rg = headers[@"X-RateLimit-Global"]; if (rg) ui[@"x-ratelimit-global"] = rg;
             }
-            resp.error = [NSError errorWithDomain:@"com.caelum.discord"
+            resp.error = [NSError errorWithDomain:CLMErrorDomain
                                              code:code
                                          userInfo:ui];
         }
@@ -439,6 +436,14 @@
     [self performRequest:req completion:completion];
 }
 
+- (void)bulkOverwriteRolesInGuild:(NSString *)guildID roles:(NSArray<NSDictionary *> *)roles auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/roles", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = roles ?: @[];
+    req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
 - (void)banUserInGuild:(NSString *)guildID userID:(NSString *)userID deleteMessageSeconds:(NSNumber *)deleteMessageSeconds auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"guilds/%@/bans/%@", guildID, userID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
@@ -605,6 +610,13 @@
 
 - (void)getInviteWithCode:(NSString *)inviteCode completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"invites/%@", inviteCode];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getInviteWithCode:(NSString *)inviteCode withCounts:(BOOL)withCounts completion:(CLMRESTCompletion)completion {
+    NSString *qs = withCounts ? @"?with_counts=true" : @"";
+    NSString *route = [NSString stringWithFormat:@"invites/%@%@", inviteCode, qs];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
     [self performRequest:req completion:completion];
 }

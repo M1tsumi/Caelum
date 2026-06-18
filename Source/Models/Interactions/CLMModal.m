@@ -40,8 +40,9 @@
 - (instancetype)customId:(NSString *)customId { _customId = [customId copy]; return self; }
 - (instancetype)title:(NSString *)title { _title = [title copy]; return self; }
 - (instancetype)addTextInput:(CLMTextInput *)textInput {
+    if (!textInput) return self;
     CLMActionRow *row = [CLMActionRow new];
-    row.components = @[textInput ?: [NSNull null]];
+    row.components = @[textInput];
     [_rows addObject:row];
     return self;
 }

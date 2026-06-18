@@ -2,8 +2,25 @@
 @protocol CLMTokenProvider;
 NS_ASSUME_NONNULL_BEGIN
 typedef NS_OPTIONS(NSUInteger, CLMIntents) {
-    CLMIntentGuilds = 1 << 0,
-    CLMIntentGuildMessages = 1 << 1,
+    CLMIntentGuilds                 = 1 << 0,
+    CLMIntentGuildMembers           = 1 << 1,
+    CLMIntentGuildModeration        = 1 << 2,
+    CLMIntentGuildEmojisAndStickers = 1 << 3,
+    CLMIntentGuildIntegrations      = 1 << 4,
+    CLMIntentGuildWebhooks          = 1 << 5,
+    CLMIntentGuildInvites           = 1 << 6,
+    CLMIntentGuildVoiceStates       = 1 << 7,
+    CLMIntentGuildPresences         = 1 << 8,
+    CLMIntentGuildMessages          = 1 << 9,
+    CLMIntentGuildMessageReactions  = 1 << 10,
+    CLMIntentGuildMessageTyping     = 1 << 11,
+    CLMIntentDirectMessages         = 1 << 12,
+    CLMIntentDirectMessageReactions = 1 << 13,
+    CLMIntentDirectMessageTyping    = 1 << 14,
+    CLMIntentMessageContent         = 1 << 15,
+    CLMIntentGuildScheduledEvents   = 1 << 16,
+    CLMIntentAutoModConfiguration   = 1 << 20,
+    CLMIntentAutoModExecution       = 1 << 21,
 };
 @interface CLMGatewayConfiguration : NSObject
 @property (nonatomic) CLMIntents intents;

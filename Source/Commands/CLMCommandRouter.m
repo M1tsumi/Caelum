@@ -84,6 +84,7 @@
         if (!mw(ctx, &mwErr)) { return; }
     }
 
+    [self.cooldowns recordExecutionForCommand:command.name userId:authorId at:now];
     [command executeWithContext:ctx completion:^(NSError * _Nullable error) {
         // no-op; bots may log or emit events
     }];

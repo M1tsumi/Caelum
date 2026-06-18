@@ -84,6 +84,7 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)createRoleInGuild:(NSString *)guildID name:(NSString *)name auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)deleteRoleInGuild:(NSString *)guildID roleID:(NSString *)roleID completion:(CLMRESTCompletion)completion;
 - (void)deleteRoleInGuild:(NSString *)guildID roleID:(NSString *)roleID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+- (void)bulkOverwriteRolesInGuild:(NSString *)guildID roles:(NSArray<NSDictionary *> *)roles auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 // Guild Bans
 - (void)banUserInGuild:(NSString *)guildID userID:(NSString *)userID deleteMessageSeconds:(nullable NSNumber *)deleteMessageSeconds auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)unbanUserInGuild:(NSString *)guildID userID:(NSString *)userID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
@@ -113,6 +114,8 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)createInviteInChannel:(NSString *)channelID maxAge:(nullable NSNumber *)maxAge maxUses:(nullable NSNumber *)maxUses temporary:(nullable NSNumber *)temporary unique:(nullable NSNumber *)unique auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)deleteInviteWithCode:(NSString *)inviteCode completion:(CLMRESTCompletion)completion;
 - (void)deleteInviteWithCode:(NSString *)inviteCode auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+- (void)getInviteWithCode:(NSString *)inviteCode completion:(CLMRESTCompletion)completion;
+- (void)getInviteWithCode:(NSString *)inviteCode withCounts:(BOOL)withCounts completion:(CLMRESTCompletion)completion;
 // Application Commands
 - (void)listGlobalApplicationCommands:(NSString *)applicationID completion:(CLMRESTCompletion)completion;
 - (void)createGlobalApplicationCommand:(NSString *)applicationID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;

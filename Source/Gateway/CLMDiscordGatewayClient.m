@@ -2,6 +2,7 @@
 #import "CLMWebSocketConnection.h"
 #import "CLMRESTConfiguration.h"
 #import "Models/Interactions/CLMComponentInteraction.h"
+#import "../Core/CLMEventCenter.h"
 
 typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     CLMGatewayOpDispatch = 0,
@@ -27,6 +28,7 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     if ((self=[super init])) {
         _config = configuration;
         _shardId = (_config.shardId >= 0 ? _config.shardId : -1);
+        _reconnectDelay = 1.0;
         NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
         _socket = [[CLMWebSocketConnection alloc] initWithSessionConfiguration:cfg];
         _socket.delegate = self;
@@ -139,7 +141,8 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     [self.heartbeatTimer invalidate];
     self.heartbeatTimer = nil;
     if (self.shouldReconnect) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        NSTimeInterval delay = self.reconnectDelay;
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [self connect];
         });
     }
@@ -197,12 +200,15 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
             });
         } break;
         case CLMGatewayOpDispatch: {
+            NSString *eventName = t ?: @"";
+            id payload = d ?: @{};
             if ([self.delegate respondsToSelector:@selector(gatewayDidReceiveDispatch:payload:)]) {
-                [self.delegate gatewayDidReceiveDispatch:(t ?: @"") payload:(d ?: @{})];
+                [self.delegate gatewayDidReceiveDispatch:eventName payload:payload];
             }
             if ([self.delegate respondsToSelector:@selector(gateway:didReceiveDispatch:payload:shardId:)]) {
-                [self.delegate gateway:self didReceiveDispatch:(t ?: @"") payload:(d ?: @{}) shardId:self.shardId];
+                [self.delegate gateway:self didReceiveDispatch:eventName payload:payload shardId:self.shardId];
             }
+            [[CLMEventCenter shared] postEvent:eventName payload:payload];
             if ([t isKindOfClass:[NSString class]]) {
                 if ([t isEqualToString:@"READY"]) {
                     if ([d isKindOfClass:[NSDictionary class]]) {
