@@ -26,4 +26,22 @@
     return self;
 }
 
+- (void)replyWithContent:(NSString *)content completion:(void(^)(CLMRESTResponse *))completion {
+    [self.rest sendMessageInChannel:self.channelId
+                               json:@{ @"content": content ?: @"" }
+                              files:nil
+                         completion:completion];
+}
+
+- (void)replyWithJSON:(NSDictionary *)json completion:(void(^)(CLMRESTResponse *))completion {
+    [self.rest sendMessageInChannel:self.channelId
+                               json:json ?: @{}
+                              files:nil
+                         completion:completion];
+}
+
+- (void)replyDeferredWithCompletion:(void(^)(CLMRESTResponse *))completion {
+    [self.rest triggerTypingInChannel:self.channelId completion:completion];
+}
+
 @end

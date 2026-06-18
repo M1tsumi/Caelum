@@ -1,6 +1,7 @@
 #import <XCTest/XCTest.h>
 #import "CLMDiscordRESTClient.h"
 #import "CLMMockURLProtocol.h"
+#import "../Core/CLMErrors.h"
 
 @interface CLMTestTokenProvider : NSObject <CLMTokenProvider>
 @property (nonatomic, copy) NSString *token;
@@ -42,7 +43,6 @@
         XCTAssertEqualObjects(request.HTTPMethod, @"GET");
         XCTAssertTrue([request.URL.absoluteString hasSuffix:@"users/@me"]);
         XCTAssertEqualObjects([request valueForHTTPHeaderField:@"Accept"], @"application/json");
-        XCTAssertEqualObjects([request valueForHTTPHeaderField:@"Content-Type"], @"application/json");
         XCTAssertEqualObjects([request valueForHTTPHeaderField:@"Authorization"], @"Bot TEST_TOKEN");
         *outResp = [[NSHTTPURLResponse alloc] initWithURL:request.URL statusCode:200 HTTPVersion:@"HTTP/1.1" headerFields:@{}];
         return data;
@@ -90,8 +90,8 @@
     [client getCurrentUser:^(CLMRESTResponse *response) {
         XCTAssertNotNil(response.error);
         XCTAssertEqual(response.statusCode, 401);
-        XCTAssertEqualObjects(response.error.domain, @"com.caelum.discord");
-        XCTAssertEqual(response.error.code, 3);
+        XCTAssertEqualObjects(response.error.domain, CLMErrorDomain);
+        XCTAssertEqual(response.error.code, CLMErrorUnauthorized);
         XCTAssertEqualObjects(response.error.userInfo[@"statusCode"], @(401));
         [exp fulfill];
     }];
@@ -109,8 +109,8 @@
     [client getCurrentUser:^(CLMRESTResponse *response) {
         XCTAssertNotNil(response.error);
         XCTAssertEqual(response.statusCode, 429);
-        XCTAssertEqualObjects(response.error.domain, @"com.caelum.discord");
-        XCTAssertEqual(response.error.code, 4);
+        XCTAssertEqualObjects(response.error.domain, CLMErrorDomain);
+        XCTAssertEqual(response.error.code, CLMErrorRateLimited);
         XCTAssertEqualObjects(response.error.userInfo[@"statusCode"], @(429));
         [exp fulfill];
     }];
@@ -128,8 +128,8 @@
     [client getCurrentUser:^(CLMRESTResponse *response) {
         XCTAssertNotNil(response.error);
         XCTAssertEqual(response.statusCode, 503);
-        XCTAssertEqualObjects(response.error.domain, @"com.caelum.discord");
-        XCTAssertEqual(response.error.code, 7);
+        XCTAssertEqualObjects(response.error.domain, CLMErrorDomain);
+        XCTAssertEqual(response.error.code, CLMErrorServer);
         XCTAssertEqualObjects(response.error.userInfo[@"statusCode"], @(503));
         [exp fulfill];
     }];

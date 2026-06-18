@@ -13,3 +13,4 @@ typedef NS_ERROR_ENUM(CLMErrorDomain, CLMErrorCode) {
     CLMErrorWebSocket = 9,
 };
 NSError *CLMErrorMake(CLMErrorCode code, NSString *description, NSDictionary * _Nullable extraUserInfo);
+CLMErrorCode CLMErrorCodeForHTTPStatus(NSInteger statusCode);

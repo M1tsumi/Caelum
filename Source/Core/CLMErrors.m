@@ -7,3 +7,16 @@ NSError *CLMErrorMake(CLMErrorCode code, NSString *description, NSDictionary *ex
     [ui addEntriesFromDictionary:extraUserInfo ?: @{}];
     return [NSError errorWithDomain:CLMErrorDomain code:code userInfo:[ui copy]];
 }
+
+CLMErrorCode CLMErrorCodeForHTTPStatus(NSInteger statusCode) {
+    switch (statusCode) {
+        case 400: return CLMErrorBadRequest;
+        case 401: return CLMErrorUnauthorized;
+        case 403: return CLMErrorForbidden;
+        case 404: return CLMErrorNotFound;
+        case 429: return CLMErrorRateLimited;
+        default:
+            if (statusCode >= 500) return CLMErrorServer;
+            return CLMErrorUnknown;
+    }
+}

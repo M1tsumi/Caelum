@@ -95,6 +95,7 @@
         CLMRESTResponse *resp = [CLMRESTResponse new];
         if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
             resp.statusCode = ((NSHTTPURLResponse *)response).statusCode;
+            resp.responseHeaders = ((NSHTTPURLResponse *)response).allHeaderFields;
         }
         if (error) {
             CLMLog(self.logger, CLMLogLevelError, @"Network error for %@: %@", request.route ?: @"?", error.localizedDescription);
@@ -120,10 +121,7 @@
         }
 
         if (!resp.error && resp.statusCode >= 400) {
-            CLMErrorCode code = CLMErrorUnknown;
-            if (resp.statusCode == 401) code = CLMErrorUnauthorized;
-            else if (resp.statusCode == 429) code = CLMErrorRateLimited;
-            else if (resp.statusCode >= 500) code = CLMErrorServer;
+            CLMErrorCode code = CLMErrorCodeForHTTPStatus(resp.statusCode);
             NSMutableDictionary *ui = [@{ @"statusCode": @(resp.statusCode),
                                           @"endpoint": request.route ?: @"",
                                         } mutableCopy];
@@ -136,9 +134,7 @@
                 id rb = headers[@"X-RateLimit-Bucket"]; if (rb) ui[@"x-ratelimit-bucket"] = rb;
                 id rg = headers[@"X-RateLimit-Global"]; if (rg) ui[@"x-ratelimit-global"] = rg;
             }
-            resp.error = [NSError errorWithDomain:CLMErrorDomain
-                                             code:code
-                                         userInfo:ui];
+            resp.error = CLMErrorMake(code, nil, ui);
         }
         CLMLog(self.logger, CLMLogLevelInfo, @"%@ -> %ld", request.route ?: @"?", (long)resp.statusCode);
         if (completion) completion(resp);
