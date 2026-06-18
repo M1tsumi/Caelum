@@ -2,7 +2,7 @@
 #import "CLMCommand.h"
 #import "CLMCommandCooldownManager.h"
 #import "CLMCommandPermissionChecker.h"
-#import "../Core/CLMLogger.h"
+#import "CLMLogger.h"
 @class CLMDiscordRESTClient;
 @class CLMDiscordGatewayClient;
 @class CLMCommandContext;

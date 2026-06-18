@@ -2,7 +2,7 @@
 #import "CLMRESTConfiguration.h"
 #import "CLMRESTRequest.h"
 #import "CLMRESTResponse.h"
-#import "../Core/CLMLogger.h"
+#import "CLMLogger.h"
 NS_ASSUME_NONNULL_BEGIN
 typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 

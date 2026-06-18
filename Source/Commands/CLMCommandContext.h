@@ -2,6 +2,7 @@
 
 @class CLMDiscordRESTClient;
 @class CLMDiscordGatewayClient;
+@class CLMRESTResponse;
 
 NS_ASSUME_NONNULL_BEGIN
 
