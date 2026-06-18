@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to Semantic Versioning once stable.
 
+## [Unreleased]
+### Added
+- Tests: 4 new test files — CLMErrorsTests (16 tests), CLMRESTResponseTests (17 tests),
+  CLMRateLimiterTests (7 tests), CLMCommandCooldownManagerTests (10 tests)
+- Tests: 14 new REST client tests — POST/DELETE/PATCH body, query params, 204 no-content,
+  network errors, 400/403/404 mappings, audit log reason on POST, nil completion safety,
+  concurrent request isolation
+- Tests: `docs/` folder added to repository with per-module API reference (11 files)
+### Changed
+- README: project layout now reflects ~85 unit tests
+- Existing `testAuditLogHeaderPropagation` now uses provider-fulfillment instead of
+  dispatch_after for deterministic timing
+
 ## [v0.2.0 - 2025-11-16]
 ### Added
 - REST: Full Discord v10 endpoint parity (non-voice) — ~50 new endpoints:

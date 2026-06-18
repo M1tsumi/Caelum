@@ -2,7 +2,7 @@
 
 **Objective-C Discord Bot Library | Discord Gateway v10 | iOS & macOS**
 
-An Objective-C library for building Discord bots on Apple platforms. No Swift required — just you, Foundation, and the Discord API.
+Native Objective-C library for Discord bots on Apple platforms. No Swift required.
 
 ![Language](https://img.shields.io/badge/language-Objective%E2%80%91C-blue)
 ![Platforms](https://img.shields.io/badge/platforms-iOS%20%7C%20macOS-lightgrey)
@@ -11,131 +11,45 @@ An Objective-C library for building Discord bots on Apple platforms. No Swift re
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![CI](https://github.com/M1tsumi/Caelum/actions/workflows/ci.yml/badge.svg)](https://github.com/M1tsumi/Caelum/actions/workflows/ci.yml)
 
-<div align="center" style="margin: 8px 0 0 0;">
-  <a href="https://discord.gg/6nS2KqxQtj" target="_blank" rel="noopener noreferrer">
-    <button style="background:#5865F2;color:#fff;border:none;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;">Join our Discord</button>
-  </a>
-</div>
-
-> **Heads up:** We're still iterating before v1.0. Things might change.
+> API may change before v1.0.
 
 ---
 
 ## What's This For?
 
-Most Discord bot libraries are written in Python, JavaScript, or Rust. If you're working in an Objective-C codebase (or just prefer it), your options are slim. Caelum is a native Objective-C wrapper around Discord's REST API and Gateway — same frameworks you already use, no bridging needed.
+Most Discord bot libraries are Python, JavaScript, or Rust. If you work in Objective-C, options are slim. Caelum wraps Discord's REST API and Gateway in native Foundation types.
 
 **Good for:**
 - Objective-C projects that need a Discord bot
-- Developers who'd rather write `[client sendMessage:@"hi" toChannel:id]` than stringify JSON
-- Apps that already depend on Foundation and want to stay there
+- Writing `[client sendMessage:@"hi" toChannel:id]` instead of stringifying JSON
+- Sticking with Foundation without bridging to Swift
 
 ---
 
-## What You Get
-
-### Gateway (real-time bot stuff)
-- Discord Gateway v10 over WebSocket — connects, stays alive, reconnects when things break
-- Sharding via `CLMShardManager` — handles multi-guild scaling
-- Heartbeats, session resume, presence updates, member chunking
-
-### REST API
-- Just about every v10 endpoint that doesn't involve voice audio
-- Messages, channels, threads, guilds, roles, bans, webhooks, invites
-- Application commands (global and per-guild) with permissions
-- Interactions — slash commands, buttons, select menus, modals, followups
-- Polls, AutoMod, scheduled events, stage instances, forum channels
-- Application emojis, stickers, member verification, onboarding, templates
-- File uploads with multipart form encoding
-
-### Developer Experience
-- `CLMRESTResponse` — `response.isSuccess`, `response.isRateLimited`, rate limit headers exposed directly
-- `CLMErrorMake(code, description, extra)` — no more guessing domain strings
-- `CLMLog()` — debug/info/warn/error logging with file and line info
-- `CLMCommandRouter` — MEE6-style prefix commands with cooldowns and permissions
-- `CLMCommandRouterDelegate` — get callbacks when commands succeed, fail, or get rejected
-- `CLMEventCenter` — block-based event listeners (subscribe to `MESSAGE_CREATE`, etc.)
-- `CLMCacheManager` — in-memory cache with TTL and max size
-- Paginators for messages and members
-- Rate limiter with per-bucket and global backoff
-- Logger protocol — swap in your own logger, or use the default that calls `NSLog`
-
----
-
-## Requirements
-
-- **iOS 13.0+** or **macOS 10.15+** (needed for `NSURLSessionWebSocketTask`)
-- **Xcode 15+**
-- Apple Silicon or Intel Mac
-
-This is Apple-only. Foundation doesn't run on Linux or Windows.
-
----
-
-## Installation
-
-### Swift Package Manager
-
-Add to your `Package.swift`:
-
-```swift
-dependencies: [
-    .package(url: "https://github.com/M1tsumi/Caelum.git", from: "0.2.0")
-],
-targets: [
-    .target(
-        name: "YourBot",
-        dependencies: [
-            .product(name: "Caelum", package: "Caelum")
-        ]
-    )
-]
-```
-
-Then import:
-
-```objc
-#import <Caelum/Caelum.h>
-```
-
-CocoaPods and Carthage? Not yet, but maybe later.
-
----
-
-## Getting Started
-
-### Basic bot
+## Quick Start
 
 ```objc
 #import <Caelum/Caelum.h>
 
 CLMClientConfiguration *config = [CLMClientConfiguration defaultConfiguration];
-// Set your token — two ways:
-config.restConfiguration.botToken = @"BOT_TOKEN_HERE";           // easy
-// config.restConfiguration.tokenProvider = myTokenProvider;     // or via protocol
+config.restConfiguration.botToken = @"BOT_TOKEN";
 config.gatewayConfiguration.intents = CLMIntentGuilds | CLMIntentGuildMessages;
 
 CLMDiscordClient *client = [[CLMDiscordClient alloc] initWithConfiguration:config];
-
-// Connect to gateway
 [client.gateway connect];
 
-// Send a message
-[client.rest sendMessage:@"Hello from Caelum!"
-               toChannel:channelID
+[client.rest sendMessage:@"Hello" toChannel:channelID
               completion:^(CLMRESTResponse *resp) {
     if (resp.isSuccess) NSLog(@"Sent!");
-    if (resp.isRateLimited) NSLog(@"Slow down!");
 }];
 ```
 
-### Prefix commands
+### Prefix Commands
 
 ```objc
 CLMCommandRouter *router = [[CLMCommandRouter alloc] initWithREST:client.rest
                                                            gateway:client.gateway];
 router.prefix = @"!";
-router.delegate = self; // optional: get callbacks for command lifecycle
 
 @interface PingCommand : NSObject <CLMCommand>
 @end
@@ -149,11 +63,10 @@ router.delegate = self; // optional: get callbacks for command lifecycle
     }];
 }
 @end
-
 [router registerCommand:[PingCommand new]];
 ```
 
-### File uploads
+### File Uploads
 
 ```objc
 NSData *image = [NSData dataWithContentsOfFile:@"/tmp/screenshot.png"];
@@ -161,16 +74,13 @@ CLMRESTFilePart *file = [CLMRESTFilePart partWithField:@"files[0]"
                                                filename:@"screenshot.png"
                                                mimeType:@"image/png"
                                                    data:image];
-
 [client.rest sendMessageInChannel:channelID
-                             json:@{ @"content": @"Here's a screenshot" }
+                             json:@{ @"content": @"Screenshot" }
                             files:@[file]
-                       completion:^(CLMRESTResponse *resp) {
-    // resp.isSuccess, resp.error, etc.
-}];
+                       completion:^(CLMRESTResponse *resp) { }];
 ```
 
-### Event listeners
+### Event Listeners
 
 ```objc
 [[CLMEventCenter shared] addListenerForEvent:@"GUILD_CREATE"
@@ -182,18 +92,61 @@ CLMRESTFilePart *file = [CLMRESTFilePart partWithField:@"files[0]"
 
 ---
 
+## Requirements
+
+- iOS 13.0+ / macOS 10.15+ (for `NSURLSessionWebSocketTask`)
+- Xcode 15+
+- Apple Silicon or Intel Mac
+
+Apple platforms only. Foundation does not run on Linux or Windows.
+
+---
+
+## Installation
+
+### Swift Package Manager
+
+```swift
+dependencies: [
+    .package(url: "https://github.com/M1tsumi/Caelum.git", from: "0.2.0")
+]
+```
+
+```objc
+#import <Caelum/Caelum.h>
+```
+
+---
+
 ## Project Layout
 
 ```
-Source/
-├── Gateway/     WebSocket, sharding, reconnect
-├── REST/        Endpoints, rate limiter, response models
-├── Models/      Discord objects (messages, guilds, components, etc.)
-├── Commands/    Command router, cooldowns, permissions
-├── Client/      Facade that ties REST + Gateway together
-├── Core/        Logger, errors, cache, event center
-└── Tests/       Unit tests with mock URL protocol
+  Source/
+  Gateway/    WebSocket, sharding, reconnect
+  REST/       Endpoints, rate limiter, response models
+  Models/     Discord objects (messages, guilds, components, etc.)
+  Commands/   Command router, cooldowns, permissions
+  Client/     Facade tying REST + Gateway together
+  Core/       Logger, errors, cache, event center
+  Tests/      ~85 unit tests (REST endpoints, errors, response headers, rate limiter, cooldowns)
 ```
+
+---
+
+## Documentation
+
+Full API reference is in the [docs/](docs/) folder:
+
+- [Getting Started](docs/getting-started.md)
+- [REST Client](docs/rest-client.md)
+- [Gateway](docs/gateway.md)
+- [Models](docs/models.md)
+- [Commands](docs/commands.md)
+- [Error Handling](docs/error-handling.md)
+- [Logging](docs/logging.md)
+- [Rate Limiting](docs/rate-limiting.md)
+- [Caching](docs/caching.md)
+- [Events](docs/events.md)
 
 ---
 
@@ -201,79 +154,37 @@ Source/
 
 ### Gateway v10
 
-| Feature | Status |
-|---------|--------|
-| Identify, Heartbeat, Resume | Done |
-| Reconnect, Invalid Session | Done |
-| Sharding | Done |
-| Presence Update, Member Chunk | Done |
+Identify, Heartbeat, Resume, Reconnect, Invalid Session, Sharding, Presence Update, Member Chunk -- all implemented.
 
 ### REST v10
 
-| Area | Status |
-|------|--------|
-| Users, Channels, Messages | Full |
-| Threads, Guilds, Roles | Full |
-| Webhooks, Invites, Bans | Full |
-| Application Commands & Permissions | Full |
-| Interactions, Followups, Modals | Full |
-| Polls, AutoMod, Scheduled Events | Full |
-| Stage Instances, Templates | Full |
-| Guild Onboarding, Welcome Screen | Full |
-| Member Verification, Incident Actions | Full |
-| Emojis, Stickers, Application Emojis | Full |
-| Voice State (mute/deafen/suppress) | Done — no audio |
-| **Voice audio (send/receive)** | **Not implemented** |
+Users, Channels, Messages, Threads, Guilds, Roles, Bans, Webhooks, Invites, Application Commands & Permissions, Interactions (slash commands, buttons, selects, modals, followups), Polls, AutoMod, Scheduled Events, Stage Instances, Guild Templates, Onboarding, Welcome Screen, Member Verification, Incident Actions, Emojis, Stickers, Application Emojis, Voice State (mute/deafen/suppress only).
+
+Voice audio (send/receive) is **not** implemented.
 
 ---
 
 ## Things to Know
 
-### Rate limiting
-Caelum tracks per-bucket and global rate limits. If you get 429'd, the `CLMRESTResponse.error.userInfo` includes `retry_after`, `x-ratelimit-bucket`, and `x-ratelimit-global`. The rate limiter delays requests automatically when a bucket is exhausted.
+### Rate Limiting
+Per-bucket and global rate limit tracking. On 429, `CLMRESTResponse.error.userInfo` contains `retry_after`, `x-ratelimit-bucket`, `x-ratelimit-global`. Requests are delayed automatically when a bucket is exhausted.
 
-### Error handling
-Errors use `CLMErrorDomain` with typed codes — check `resp.error.code` against `CLMErrorUnauthorized`, `CLMErrorRateLimited`, `CLMErrorNotFound`, etc. Use `CLMErrorMake()` to create consistent errors if you're extending things.
+### Error Handling
+All errors use `CLMErrorDomain` with typed codes: `CLMErrorUnauthorized`, `CLMErrorRateLimited`, `CLMErrorNotFound`, `CLMErrorForbidden`, `CLMErrorBadRequest`, `CLMErrorServer`, `CLMErrorNetwork`, `CLMErrorDecode`, `CLMErrorWebSocket`. Use `CLMErrorMake()` to create consistent errors.
 
 ### Logging
-Assign a `logger` to `client.logger` and `CLMLog()` will output with level, file, line, and function name. The default logger prints to `NSLog` at INFO level and above. Implement the `CLMLogger` protocol to hook in your own (OSLog, file, remote, etc.)
-
----
-
-## Roadmap
-
-- [x] Gateway v10 core
-- [x] REST API coverage (non-voice)
-- [x] Sharding
-- [x] Interaction components (buttons, selects, modals)
-- [x] Application emojis
-- [ ] Voice audio (planned)
-- [ ] CocoaPods / Carthage
-- [ ] More unit tests
-- [ ] Performance benchmarks
+Set `client.logger` to an `id<CLMLogger>`. Use the `CLMLog()` macro for automatic file/line/function info. Default logger prints to NSLog at INFO+. Implement the protocol to hook in OSLog, file, or remote logging.
 
 ---
 
 ## Contributing
 
-Fork the repo, make a branch, send a PR. Keep the code style consistent — no comments in implementation files, follow the existing patterns.
+Fork, branch, PR. Keep code style consistent. See [CHANGELOG.md](CHANGELOG.md).
 
-See [CHANGELOG.md](CHANGELOG.md) for what's changed.
-
----
-
-## Community
-
-- **Discord**: [Join here](https://discord.gg/6nS2KqxQtj)
-- **Issues**: [GitHub Issues](https://github.com/M1tsumi/Caelum/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/M1tsumi/Caelum/discussions)
+[Discord](https://discord.gg/6nS2KqxQtj) | [Issues](https://github.com/M1tsumi/Caelum/issues)
 
 ---
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
----
-
-*Keywords: objective-c, discord, discord-bot, discord-api, ios, macos, gateway, rest-api, bot-framework, discord-v10, sharding, interactions, webhooks*
+MIT -- see [LICENSE](LICENSE).
