@@ -31,6 +31,8 @@
 // Localization
 #import "Models/Localization/CLMLocale.h"
 #import "Models/Localization/CLMLocalizedString.h"
+// Application Emoji
+#import "Models/ApplicationEmoji/CLMApplicationEmoji.h"
 // Forum
 #import "Models/Forum/CLMForumChannel.h"
 #import "Models/Forum/CLMForumTag.h"
@@ -45,6 +47,10 @@
 #import "Models/Messages/CLMMessageSnapshot.h"
 // Client
 #import "Client/CLMDiscordClient.h"
+#import "Client/CLMClientConfiguration.h"
+// REST Paginators
+#import "REST/CLMMessagesPaginator.h"
+#import "REST/CLMMembersPaginator.h"
 // Commands (scaffolding)
 #import "Commands/CLMCommand.h"
 #import "Commands/CLMCommandContext.h"

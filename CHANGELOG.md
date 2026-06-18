@@ -4,6 +4,56 @@ All notable changes to this project will be documented in this file.
 
 The format is based on Keep a Changelog and this project adheres to Semantic Versioning once stable.
 
+## [v0.2.0 - 2025-11-16]
+### Added
+- REST: Full Discord v10 endpoint parity (non-voice) — ~50 new endpoints:
+  - User: modify profile, guilds list, create DM, leave guild, guild member
+  - Channel: get single message, follow news channel, group DM CRUD, voice status
+  - Guild: preview, channel reorder, add member, self-nick, message search,
+    modify/get individual role, role member counts, voice regions,
+    delete integration, bulk ban, member screening, incident actions
+  - Application: edit application, bulk overwrite commands, get single command,
+    command permissions (list/batch/get/edit for global & guild)
+  - Gateway info, OAuth2, Sticker Packs, Webhooks (Slack/GitHub/get),
+    Role Connection Metadata, Voice Regions, Voice State GET,
+    Scheduled Event GET, Expire Poll
+- Intents: Added `CLMIntentGuildMessagePolls` (1 << 24) and
+  `CLMIntentDirectMessagePolls` (1 << 25)
+- Error codes: `CLMErrorBadRequest` (5), `CLMErrorForbidden` (6),
+  `CLMErrorNotFound` (8), `CLMErrorWebSocket` (9)
+- Error factory: `CLMErrorMake()` function for consistent NSError creation
+- Logging: `CLMLogLevel` enum (Debug/Info/Warning/Error), `CLMLog()` macro
+  with automatic source location and level filtering
+- Logger injection: `logger` property on `CLMDiscordClient`,
+  `CLMDiscordRESTClient`, and `CLMCommandRouter`
+- Logging: Request/response logging throughout REST client lifecycle,
+  command routing events, rate limit detection
+- CommandRouter: `CLMCommandRouterDelegate` protocol with callbacks for
+  handled/failed/rejected commands
+- RESTResponse: `isSuccess`, `isError`, `isRateLimited`, `isUnauthorized`
+  convenience properties plus rate limit header accessors
+- RESTConfig: `botToken` property for direct token assignment without
+  implementing CLMTokenProvider protocol
+- CommandContext: `replyWithContent:`, `replyWithJSON:`, `replyDeferred`
+  convenience methods for common interaction responses
+- Errors: `CLMErrorCodeForHTTPStatus()` helper function
+### Changed
+- CLMErrors domain uses `CLMErrorDomain` constant throughout all files
+  (was hardcoded `@"com.caelum.discord"` string in gateway client)
+- Gateway reconnect delay made configurable via `reconnectDelay` property
+- Umbrella headers synced between `Source/Caelum.h` and SwiftPM variant
+- CLMDefaultLogger format: `[LEVEL] file:line function - message`
+### Fixed
+- `_session` ivar shadowing in CLMDiscordRESTClient (nil URLSession bug)
+- Missing `Content-Type: application/json` header for JSON-only requests
+- Rate limiter stub replaced with real bucket/global tracking
+- Cooldown manager never recorded command executions
+- `NSNull` crash risk in `CLMModalBuilder.addTextInput:`
+- `CLMAutoModTrigger` missing spam trigger type handling
+- Hardcoded error domains in gateway client replaced with constant
+- All errors now wrapped in `CLMErrorDomain` (JSON serialization errors
+  were previously bare NSCocoaErrorDomain)
+
 ## [v0.1.1 - 2025-11-15]
 ### Added
 - Gateway: READY session capture, RESUME (OP 6), RECONNECT (OP 7), INVALID_SESSION (OP 9) with 1–4s jitter re-identify, and auto-reconnect behavior.

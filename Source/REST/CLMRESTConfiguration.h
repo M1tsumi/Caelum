@@ -6,6 +6,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface CLMRESTConfiguration : NSObject
 @property (nonatomic, copy) NSURL *baseURL;
 @property (nonatomic, weak, nullable) id<CLMTokenProvider> tokenProvider;
+@property (nonatomic, copy, nullable) NSString *botToken;
 @property (nonatomic) NSTimeInterval timeout;
 + (instancetype)defaultConfiguration;
 @end

@@ -20,6 +20,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface CLMDiscordGatewayClient : NSObject
 @property (nonatomic, weak, nullable) id<CLMGatewayEventDelegate> delegate;
 @property (nonatomic, assign, readonly) NSInteger shardId; // -1 if unset
+@property (nonatomic, assign) NSTimeInterval reconnectDelay; // seconds, default 1.0
 - (instancetype)initWithConfiguration:(CLMGatewayConfiguration *)configuration;
 - (void)connect;
 - (void)disconnect;

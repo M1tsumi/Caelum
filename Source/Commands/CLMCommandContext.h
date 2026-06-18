@@ -2,6 +2,7 @@
 
 @class CLMDiscordRESTClient;
 @class CLMDiscordGatewayClient;
+@class CLMRESTResponse;
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -23,6 +24,10 @@ NS_ASSUME_NONNULL_BEGIN
                              arguments:(NSArray<NSString *> *)arguments
                                   rest:(CLMDiscordRESTClient *)rest
                                gateway:(nullable CLMDiscordGatewayClient *)gateway NS_DESIGNATED_INITIALIZER;
+
+- (void)replyWithContent:(NSString *)content completion:(nullable void(^)(CLMRESTResponse *response))completion;
+- (void)replyWithJSON:(NSDictionary *)json completion:(nullable void(^)(CLMRESTResponse *response))completion;
+- (void)replyDeferredWithCompletion:(nullable void(^)(CLMRESTResponse *response))completion;
 
 - (instancetype)init NS_UNAVAILABLE;
 + (instancetype)new NS_UNAVAILABLE;

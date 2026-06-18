@@ -13,6 +13,8 @@
         if (json[@"mention_total_limit"]) t.mentionTotalLimit = json[@"mention_total_limit"];
     } else if (type == CLMAutoModTriggerKeywordPreset) {
         if ([json[@"presets"] isKindOfClass:[NSArray class]]) t.presets = json[@"presets"];
+    } else if (type == CLMAutoModTriggerSpam) {
+        // spam trigger type has no additional metadata fields
     }
     return t;
 }
@@ -30,6 +32,8 @@
             break;
         case CLMAutoModTriggerKeywordPreset:
             if (self.presets) md[@"presets"] = self.presets;
+            break;
+        case CLMAutoModTriggerSpam:
             break;
         default: break;
     }

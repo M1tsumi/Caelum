@@ -1,29 +1,26 @@
 #import "CLMDiscordRESTClient.h"
+#import "../Core/CLMErrors.h"
+#import "../Core/CLMLogger.h"
 
-@implementation CLMDiscordRESTClient {
-    NSURLSession *_session;
-}
+@implementation CLMDiscordRESTClient
 
 - (instancetype)initWithConfiguration:(CLMRESTConfiguration *)configuration {
     if ((self = [super init])) {
         _configuration = configuration;
         NSURLSessionConfiguration *cfg = [NSURLSessionConfiguration defaultSessionConfiguration];
         cfg.timeoutIntervalForRequest = configuration.timeout;
-        _session = [NSURLSession sessionWithConfiguration:cfg];
-        _session = _session; // explicitly retain
+        self->_session = [NSURLSession sessionWithConfiguration:cfg];
     }
     return self;
 }
-
-- (NSURLSession *)session { return _session; }
 
 - (void)performRequest:(CLMRESTRequest *)request completion:(CLMRESTCompletion)completion {
     // Build URL
     NSURL *url = [NSURL URLWithString:request.route relativeToURL:self.configuration.baseURL];
     if (!url) {
         CLMRESTResponse *resp = [CLMRESTResponse new];
-        resp.error = [NSError errorWithDomain:@"com.caelum.discord"
-                                         code:-1
+        resp.error = [NSError errorWithDomain:CLMErrorDomain
+                                         code:CLMErrorUnknown
                                      userInfo:@{NSLocalizedDescriptionKey: @"Invalid URL"}];
         if (completion) completion(resp);
         return;
@@ -80,6 +77,7 @@
         [bodyData appendData:[[NSString stringWithFormat:@"--%@--\r\n", boundary] dataUsingEncoding:NSUTF8StringEncoding]];
         urlRequest.HTTPBody = bodyData;
     } else if (request.jsonBody) {
+        [urlRequest setValue:@"application/json" forHTTPHeaderField:@"Content-Type"];
         NSError *encodeError = nil;
         NSData *body = [NSJSONSerialization dataWithJSONObject:request.jsonBody options:0 error:&encodeError];
         if (encodeError) {
@@ -91,15 +89,18 @@
         urlRequest.HTTPBody = body;
     }
 
+    CLMLog(self.logger, CLMLogLevelDebug, @"%@ %@", request.method ?: @"GET", request.route ?: @"?");
+
     NSURLSessionDataTask *task = [self.session dataTaskWithRequest:urlRequest completionHandler:^(NSData * _Nullable data, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         CLMRESTResponse *resp = [CLMRESTResponse new];
         if ([response isKindOfClass:[NSHTTPURLResponse class]]) {
             resp.statusCode = ((NSHTTPURLResponse *)response).statusCode;
+            resp.responseHeaders = ((NSHTTPURLResponse *)response).allHeaderFields;
         }
         if (error) {
-            // Network/transport error
-            resp.error = [NSError errorWithDomain:@"com.caelum.discord"
-                                             code:1 /* CLMErrorNetwork */
+            CLMLog(self.logger, CLMLogLevelError, @"Network error for %@: %@", request.route ?: @"?", error.localizedDescription);
+            resp.error = [NSError errorWithDomain:CLMErrorDomain
+                                             code:CLMErrorNetwork
                                          userInfo:@{ NSUnderlyingErrorKey: error ?: [NSNull null],
                                                      @"endpoint": request.route ?: @"",
                                                    }];
@@ -107,8 +108,9 @@
             NSError *jsonError = nil;
             id obj = [NSJSONSerialization JSONObjectWithData:data options:0 error:&jsonError];
             if (jsonError) {
-                resp.error = [NSError errorWithDomain:@"com.caelum.discord"
-                                                 code:2 /* CLMErrorDecode */
+                CLMLog(self.logger, CLMLogLevelError, @"Decode error for %@: %@", request.route ?: @"?", jsonError.localizedDescription);
+                resp.error = [NSError errorWithDomain:CLMErrorDomain
+                                                 code:CLMErrorDecode
                                              userInfo:@{ NSUnderlyingErrorKey: jsonError,
                                                          @"endpoint": request.route ?: @"",
                                                          @"statusCode": @(resp.statusCode),
@@ -118,16 +120,13 @@
             }
         }
 
-        // Map HTTP status codes to domain errors when applicable
         if (!resp.error && resp.statusCode >= 400) {
-            NSInteger code = 0; // CLMErrorUnknown default
-            if (resp.statusCode == 401) code = 3; // CLMErrorUnauthorized
-            else if (resp.statusCode == 429) code = 4; // CLMErrorRateLimited
-            else if (resp.statusCode >= 500) code = 7; // server generic
+            CLMErrorCode code = CLMErrorCodeForHTTPStatus(resp.statusCode);
             NSMutableDictionary *ui = [@{ @"statusCode": @(resp.statusCode),
                                           @"endpoint": request.route ?: @"",
                                         } mutableCopy];
             if (resp.statusCode == 429 && response) {
+                CLMLog(self.logger, CLMLogLevelWarning, @"Rate limited on %@", request.route ?: @"?");
                 NSDictionary *headers = ((NSHTTPURLResponse *)response).allHeaderFields;
                 id ra = headers[@"Retry-After"]; if (ra) ui[@"retry_after"] = ra;
                 id rl = headers[@"X-RateLimit-Remaining"]; if (rl) ui[@"x-ratelimit-remaining"] = rl;
@@ -135,10 +134,9 @@
                 id rb = headers[@"X-RateLimit-Bucket"]; if (rb) ui[@"x-ratelimit-bucket"] = rb;
                 id rg = headers[@"X-RateLimit-Global"]; if (rg) ui[@"x-ratelimit-global"] = rg;
             }
-            resp.error = [NSError errorWithDomain:@"com.caelum.discord"
-                                             code:code
-                                         userInfo:ui];
+            resp.error = CLMErrorMake(code, nil, ui);
         }
+        CLMLog(self.logger, CLMLogLevelInfo, @"%@ -> %ld", request.route ?: @"?", (long)resp.statusCode);
         if (completion) completion(resp);
     }];
     [task resume];
@@ -439,6 +437,14 @@
     [self performRequest:req completion:completion];
 }
 
+- (void)bulkOverwriteRolesInGuild:(NSString *)guildID roles:(NSArray<NSDictionary *> *)roles auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/roles", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = roles ?: @[];
+    req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
 - (void)banUserInGuild:(NSString *)guildID userID:(NSString *)userID deleteMessageSeconds:(NSNumber *)deleteMessageSeconds auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"guilds/%@/bans/%@", guildID, userID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
@@ -605,6 +611,13 @@
 
 - (void)getInviteWithCode:(NSString *)inviteCode completion:(CLMRESTCompletion)completion {
     NSString *route = [NSString stringWithFormat:@"invites/%@", inviteCode];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getInviteWithCode:(NSString *)inviteCode withCounts:(BOOL)withCounts completion:(CLMRESTCompletion)completion {
+    NSString *qs = withCounts ? @"?with_counts=true" : @"";
+    NSString *route = [NSString stringWithFormat:@"invites/%@%@", inviteCode, qs];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
     [self performRequest:req completion:completion];
 }
@@ -1531,6 +1544,347 @@
 // Sticker packs
 - (void)listStickerPacks:(CLMRESTCompletion)completion {
     NSString *route = @"sticker-packs";
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Application
+- (void)editCurrentApplicationWithJSON:(NSDictionary *)json completion:(CLMRESTCompletion)completion {
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:@"applications/@me"];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+// Users
+- (void)modifyCurrentUserWithJSON:(NSDictionary *)json completion:(CLMRESTCompletion)completion {
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:@"users/@me"];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+- (void)getCurrentUserGuildsWithBefore:(NSString *)before after:(NSString *)after limit:(NSNumber *)limit withCounts:(NSNumber *)withCounts completion:(CLMRESTCompletion)completion {
+    NSMutableArray<NSString *> *parts = [NSMutableArray array];
+    if (before.length > 0) { [parts addObject:[NSString stringWithFormat:@"before=%@", before]]; }
+    if (after.length > 0) { [parts addObject:[NSString stringWithFormat:@"after=%@", after]]; }
+    if (limit) { [parts addObject:[NSString stringWithFormat:@"limit=%@", limit]]; }
+    if (withCounts) { [parts addObject:[NSString stringWithFormat:@"with_counts=%@", withCounts]]; }
+    NSString *query = parts.count ? [@"?" stringByAppendingString:[parts componentsJoinedByString:@"&"]] : @"";
+    NSString *route = [NSString stringWithFormat:@"users/@me/guilds%@", query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)createDMWithRecipientID:(NSString *)recipientID completion:(CLMRESTCompletion)completion {
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:@"users/@me/channels"];
+    req.jsonBody = @{ @"recipient_id": recipientID };
+    [self performRequest:req completion:completion];
+}
+
+- (void)leaveGuildWithID:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"users/@me/guilds/%@", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getCurrentUserGuildMemberInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"users/@me/guilds/%@/member", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Channels
+- (void)getMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/messages/%@", channelID, messageID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)followNewsChannel:(NSString *)channelID targetChannelID:(NSString *)targetChannelID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/followers", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = @{ @"webhook_channel_id": targetChannelID };
+    [self performRequest:req completion:completion];
+}
+
+- (void)addGroupDMRecipient:(NSString *)channelID userID:(NSString *)userID accessToken:(NSString *)accessToken nick:(NSString *)nick completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/recipients/%@", channelID, userID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    req.jsonBody = @{ @"access_token": accessToken, @"nick": nick };
+    [self performRequest:req completion:completion];
+}
+
+- (void)removeGroupDMRecipient:(NSString *)channelID userID:(NSString *)userID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/recipients/%@", channelID, userID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)setVoiceChannelStatusInChannel:(NSString *)channelID status:(NSString *)status completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/voice-status", channelID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    if (status.length > 0) {
+        req.jsonBody = @{ @"status": status };
+    } else {
+        req.jsonBody = @{};
+    }
+    [self performRequest:req completion:completion];
+}
+
+// Guilds
+- (void)getGuildPreview:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/preview", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)modifyGuildChannelPositions:(NSString *)guildID positions:(NSArray<NSDictionary *> *)positions completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/channels", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = positions ?: @[];
+    [self performRequest:req completion:completion];
+}
+
+- (void)addGuildMember:(NSString *)guildID userID:(NSString *)userID accessToken:(NSString *)accessToken nick:(NSString *)nick roles:(NSArray<NSString *> *)roles mute:(NSNumber *)mute deaf:(NSNumber *)deaf completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/members/%@", guildID, userID];
+    NSMutableDictionary *body = [NSMutableDictionary dictionary];
+    if (accessToken.length > 0) { body[@"access_token"] = accessToken; }
+    if (nick.length > 0) { body[@"nick"] = nick; }
+    if (roles.count > 0) { body[@"roles"] = roles; }
+    if (mute) { body[@"mute"] = mute; }
+    if (deaf) { body[@"deaf"] = deaf; }
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    if (body.count > 0) req.jsonBody = body;
+    [self performRequest:req completion:completion];
+}
+
+- (void)modifyCurrentMemberInGuild:(NSString *)guildID nick:(NSString *)nick completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/members/@me", guildID];
+    NSMutableDictionary *body = [NSMutableDictionary dictionary];
+    if (nick.length > 0) { body[@"nick"] = nick; }
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    if (body.count > 0) req.jsonBody = body;
+    [self performRequest:req completion:completion];
+}
+
+- (void)searchGuildMessages:(NSString *)guildID query:(NSDictionary *)query completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/messages/search", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    req.jsonBody = query ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+- (void)modifyRoleInGuild:(NSString *)guildID roleID:(NSString *)roleID json:(NSDictionary *)json auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/roles/%@", guildID, roleID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = json ?: @{};
+    req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
+- (void)getRoleInGuild:(NSString *)guildID roleID:(NSString *)roleID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/roles/%@", guildID, roleID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getRoleMemberCountsInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/roles/member-counts", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getGuildVoiceRegions:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/regions", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)deleteGuildIntegration:(NSString *)guildID integrationID:(NSString *)integrationID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/integrations/%@", guildID, integrationID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"DELETE" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)bulkBanUsersInGuild:(NSString *)guildID userIDs:(NSArray<NSString *> *)userIDs deleteMessageSeconds:(NSNumber *)deleteMessageSeconds auditLogReason:(NSString *)reason completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/bans", guildID];
+    NSMutableDictionary *body = [NSMutableDictionary dictionary];
+    if (userIDs.count > 0) { body[@"user_ids"] = userIDs; }
+    if (deleteMessageSeconds) { body[@"delete_message_seconds"] = deleteMessageSeconds; }
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    if (body.count > 0) req.jsonBody = body;
+    req.auditLogReason = reason;
+    [self performRequest:req completion:completion];
+}
+
+- (void)getGuildMemberVerification:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/member-verification", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)modifyGuildMemberVerification:(NSString *)guildID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/member-verification", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PATCH" route:route];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+- (void)modifyGuildIncidentActions:(NSString *)guildID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/incident-actions", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+// Application Commands
+- (void)bulkOverwriteGlobalCommands:(NSString *)applicationID commands:(NSArray<NSDictionary *> *)commands completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/commands", applicationID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    req.jsonBody = commands ?: @[];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getGlobalApplicationCommand:(NSString *)applicationID commandID:(NSString *)commandID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/commands/%@", applicationID, commandID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)bulkOverwriteGuildCommands:(NSString *)applicationID guildID:(NSString *)guildID commands:(NSArray<NSDictionary *> *)commands completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/guilds/%@/commands", applicationID, guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    req.jsonBody = commands ?: @[];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getGuildApplicationCommand:(NSString *)applicationID guildID:(NSString *)guildID commandID:(NSString *)commandID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/guilds/%@/commands/%@", applicationID, guildID, commandID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)listGuildApplicationCommandPermissions:(NSString *)applicationID guildID:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/guilds/%@/commands/permissions", applicationID, guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)batchEditGuildCommandPermissions:(NSString *)applicationID guildID:(NSString *)guildID permissions:(NSArray<NSDictionary *> *)permissions completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/guilds/%@/commands/permissions", applicationID, guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    req.jsonBody = permissions ?: @[];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getApplicationCommandPermissions:(NSString *)applicationID guildID:(NSString *)guildID commandID:(NSString *)commandID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/guilds/%@/commands/%@/permissions", applicationID, guildID, commandID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)editApplicationCommandPermissions:(NSString *)applicationID guildID:(NSString *)guildID commandID:(NSString *)commandID permissions:(NSArray<NSDictionary *> *)permissions completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/guilds/%@/commands/%@/permissions", applicationID, guildID, commandID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    req.jsonBody = permissions ?: @[];
+    [self performRequest:req completion:completion];
+}
+
+// Gateway
+- (void)getGatewayWithCompletion:(CLMRESTCompletion)completion {
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:@"gateway"];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getGatewayBotWithCompletion:(CLMRESTCompletion)completion {
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:@"gateway/bot"];
+    [self performRequest:req completion:completion];
+}
+
+// Webhooks
+- (void)executeSlackWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json threadID:(NSString *)threadID completion:(CLMRESTCompletion)completion {
+    NSString *query = threadID.length > 0 ? [NSString stringWithFormat:@"?thread_id=%@", threadID] : @"";
+    NSString *route = [NSString stringWithFormat:@"webhooks/%@/%@/slack%@", webhookID, token, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+- (void)executeGitHubWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json threadID:(NSString *)threadID completion:(CLMRESTCompletion)completion {
+    NSString *query = threadID.length > 0 ? [NSString stringWithFormat:@"?thread_id=%@", threadID] : @"";
+    NSString *route = [NSString stringWithFormat:@"webhooks/%@/%@/github%@", webhookID, token, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+- (void)getWebhookMessage:(NSString *)webhookID token:(NSString *)token messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"webhooks/%@/%@/messages/%@", webhookID, token, messageID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Scheduled Events
+- (void)getGuildScheduledEvent:(NSString *)guildID eventID:(NSString *)eventID withUsers:(NSNumber *)withUsers completion:(CLMRESTCompletion)completion {
+    NSString *query = withUsers ? [NSString stringWithFormat:@"?with_user_count=%@", withUsers] : @"";
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/scheduled-events/%@%@", guildID, eventID, query];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Polls
+- (void)expirePollInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"channels/%@/polls/%@/expire", channelID, messageID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"POST" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// Role Connection Metadata
+- (void)getApplicationRoleConnectionMetadata:(NSString *)applicationID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/role-connections/metadata", applicationID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)updateApplicationRoleConnectionMetadata:(NSString *)applicationID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"applications/%@/role-connections/metadata", applicationID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"PUT" route:route];
+    req.jsonBody = json ?: @{};
+    [self performRequest:req completion:completion];
+}
+
+// Voice Regions
+- (void)listVoiceRegionsWithCompletion:(CLMRESTCompletion)completion {
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:@"voice/regions"];
+    [self performRequest:req completion:completion];
+}
+
+// Voice States
+- (void)getCurrentUserVoiceStateInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/voice-states/@me", guildID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getUserVoiceStateInGuild:(NSString *)guildID userID:(NSString *)userID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"guilds/%@/voice-states/%@", guildID, userID];
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
+    [self performRequest:req completion:completion];
+}
+
+// OAuth2
+- (void)getOAuth2ApplicationWithCompletion:(CLMRESTCompletion)completion {
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:@"oauth2/applications/@me"];
+    [self performRequest:req completion:completion];
+}
+
+- (void)getOAuth2AuthorizationWithCompletion:(CLMRESTCompletion)completion {
+    CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:@"oauth2/@me"];
+    [self performRequest:req completion:completion];
+}
+
+// Sticker Packs
+- (void)getStickerPackWithID:(NSString *)packID completion:(CLMRESTCompletion)completion {
+    NSString *route = [NSString stringWithFormat:@"sticker-packs/%@", packID];
     CLMRESTRequest *req = [CLMRESTRequest requestWithMethod:@"GET" route:route];
     [self performRequest:req completion:completion];
 }

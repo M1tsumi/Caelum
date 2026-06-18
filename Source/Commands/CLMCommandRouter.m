@@ -3,6 +3,7 @@
 #import "CLMCommandContext.h"
 #import "../REST/CLMDiscordRESTClient.h"
 #import "../Gateway/CLMDiscordGatewayClient.h"
+#import "../Core/CLMErrors.h"
 
 @interface CLMCommandRouter ()
 @property (nonatomic, strong) NSMutableDictionary<NSString *, id<CLMCommand>> *registry; // lowercased name -> command
@@ -54,19 +55,33 @@
     NSArray<NSString *> *args = parts.count > 1 ? [parts subarrayWithRange:NSMakeRange(1, parts.count - 1)] : @[];
 
     id<CLMCommand> command = [self commandNamed:cmdName];
-    if (!command) return;
-
-    // Cooldown
-    NSTimeInterval now = [NSDate date].timeIntervalSince1970;
-    if (![self.cooldowns canExecuteCommand:command.name userId:authorId cooldown:command.cooldownSeconds now:now]) {
-        return; // silently drop; bots can implement feedback by a middleware
+    if (!command) {
+        CLMLog(self.logger, CLMLogLevelDebug, @"Unknown command: %@", cmdName);
+        if ([self.delegate respondsToSelector:@selector(commandRouterDidRejectCommand:reason:)]) {
+            [self.delegate commandRouterDidRejectCommand:cmdName reason:@"Unknown command"];
+        }
+        return;
     }
 
-    // Permissions
+    NSTimeInterval now = [NSDate date].timeIntervalSince1970;
+    if (![self.cooldowns canExecuteCommand:command.name userId:authorId cooldown:command.cooldownSeconds now:now]) {
+        CLMLog(self.logger, CLMLogLevelDebug, @"Command %@ on cooldown for user %@", command.name, authorId);
+        if ([self.delegate respondsToSelector:@selector(commandRouterDidRejectCommand:reason:)]) {
+            [self.delegate commandRouterDidRejectCommand:command.name reason:@"Cooldown active"];
+        }
+        return;
+    }
+
     if (self.permissionChecker && command.requiredPermissions.count > 0) {
         NSError *permErr = nil;
         BOOL ok = [self.permissionChecker userId:authorId hasPermissions:command.requiredPermissions inGuild:guildId error:&permErr];
-        if (!ok) { return; }
+        if (!ok) {
+            CLMLog(self.logger, CLMLogLevelWarning, @"Permission denied for %@ by user %@ in guild %@", command.name, authorId, guildId ?: @"?");
+            if ([self.delegate respondsToSelector:@selector(commandRouterDidRejectCommand:reason:)]) {
+                [self.delegate commandRouterDidRejectCommand:command.name reason:permErr.localizedDescription ?: @"Permission denied"];
+            }
+            return;
+        }
     }
 
     CLMCommandContext *ctx = [[CLMCommandContext alloc] initWithMessageJSON:json
@@ -78,14 +93,30 @@
                                                                           rest:self.rest
                                                                        gateway:self.gateway];
 
-    // Middleware chain
     for (CLMCommandMiddleware mw in self.middlewares) {
         NSError *mwErr = nil;
-        if (!mw(ctx, &mwErr)) { return; }
+        if (!mw(ctx, &mwErr)) {
+            CLMLog(self.logger, CLMLogLevelWarning, @"Middleware rejected command %@: %@", command.name, mwErr.localizedDescription ?: @"no error");
+            if ([self.delegate respondsToSelector:@selector(commandRouterDidRejectCommand:reason:)]) {
+                [self.delegate commandRouterDidRejectCommand:command.name reason:mwErr.localizedDescription ?: @"Middleware rejected"];
+            }
+            return;
+        }
     }
 
+    [self.cooldowns recordExecutionForCommand:command.name userId:authorId at:now];
     [command executeWithContext:ctx completion:^(NSError * _Nullable error) {
-        // no-op; bots may log or emit events
+        if (error) {
+            CLMLog(self.logger, CLMLogLevelError, @"Command %@ failed: %@", command.name, error.localizedDescription);
+            if ([self.delegate respondsToSelector:@selector(commandRouterDidFailToHandleCommand:error:)]) {
+                [self.delegate commandRouterDidFailToHandleCommand:command.name error:error];
+            }
+        } else {
+            CLMLog(self.logger, CLMLogLevelInfo, @"Command %@ handled successfully", command.name);
+            if ([self.delegate respondsToSelector:@selector(commandRouterDidHandleCommand:)]) {
+                [self.delegate commandRouterDidHandleCommand:command.name];
+            }
+        }
     }];
 }
 
