@@ -3,6 +3,7 @@
 #import "CLMRESTConfiguration.h"
 #import "Models/Interactions/CLMComponentInteraction.h"
 #import "../Core/CLMEventCenter.h"
+#import "../Core/CLMErrors.h"
 
 typedef NS_ENUM(NSInteger, CLMGatewayOp) {
     CLMGatewayOpDispatch = 0,
@@ -131,11 +132,11 @@ typedef NS_ENUM(NSInteger, CLMGatewayOp) {
 
 - (void)webSocketDidCloseWithCode:(NSInteger)code reason:(NSString *)reason {
     if ([self.delegate respondsToSelector:@selector(gatewayDidDisconnectWithError:)]) {
-        NSError *err = [NSError errorWithDomain:@"com.caelum.discord" code:code userInfo:@{NSLocalizedDescriptionKey: reason ?: @"Closed"}];
+        NSError *err = [NSError errorWithDomain:CLMErrorDomain code:code userInfo:@{NSLocalizedDescriptionKey: reason ?: @"Closed"}];
         [self.delegate gatewayDidDisconnectWithError:err];
     }
     if ([self.delegate respondsToSelector:@selector(gateway:didDisconnectWithError:shardId:)]) {
-        NSError *err = [NSError errorWithDomain:@"com.caelum.discord" code:code userInfo:@{NSLocalizedDescriptionKey: reason ?: @"Closed"}];
+        NSError *err = [NSError errorWithDomain:CLMErrorDomain code:code userInfo:@{NSLocalizedDescriptionKey: reason ?: @"Closed"}];
         [self.delegate gateway:self didDisconnectWithError:err shardId:self.shardId];
     }
     [self.heartbeatTimer invalidate];

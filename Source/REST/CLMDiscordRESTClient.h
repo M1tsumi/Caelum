@@ -2,20 +2,28 @@
 #import "CLMRESTConfiguration.h"
 #import "CLMRESTRequest.h"
 #import "CLMRESTResponse.h"
+#import "../Core/CLMLogger.h"
 NS_ASSUME_NONNULL_BEGIN
 typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 
 @interface CLMDiscordRESTClient : NSObject
 @property (nonatomic, strong, readonly) CLMRESTConfiguration *configuration;
 @property (nonatomic, strong, readonly) NSURLSession *session;
+@property (nonatomic, strong, nullable) id<CLMLogger> logger;
 
 - (instancetype)initWithConfiguration:(CLMRESTConfiguration *)configuration;
 - (void)performRequest:(CLMRESTRequest *)request completion:(CLMRESTCompletion)completion;
 - (void)getCurrentApplication:(CLMRESTCompletion)completion;
+- (void)editCurrentApplicationWithJSON:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 // Users
 - (void)getCurrentUser:(CLMRESTCompletion)completion;
 // Additional Users
 - (void)getUserWithID:(NSString *)userID completion:(CLMRESTCompletion)completion;
+- (void)modifyCurrentUserWithJSON:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
+- (void)getCurrentUserGuildsWithBefore:(nullable NSString *)before after:(nullable NSString *)after limit:(nullable NSNumber *)limit withCounts:(nullable NSNumber *)withCounts completion:(CLMRESTCompletion)completion;
+- (void)createDMWithRecipientID:(NSString *)recipientID completion:(CLMRESTCompletion)completion;
+- (void)leaveGuildWithID:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)getCurrentUserGuildMemberInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion;
 
 // Channels
 - (void)getChannelWithID:(NSString *)channelID completion:(CLMRESTCompletion)completion;
@@ -54,9 +62,15 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)editMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID json:(NSDictionary *)json files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
 // Message crosspost
 - (void)crosspostMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion;
+- (void)getMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion;
+- (void)followNewsChannel:(NSString *)channelID targetChannelID:(NSString *)targetChannelID completion:(CLMRESTCompletion)completion;
+- (void)addGroupDMRecipient:(NSString *)channelID userID:(NSString *)userID accessToken:(NSString *)accessToken nick:(NSString *)nick completion:(CLMRESTCompletion)completion;
+- (void)removeGroupDMRecipient:(NSString *)channelID userID:(NSString *)userID completion:(CLMRESTCompletion)completion;
+- (void)setVoiceChannelStatusInChannel:(NSString *)channelID status:(nullable NSString *)status completion:(CLMRESTCompletion)completion;
 // Polls
 - (void)sendMessageWithPollInChannel:(NSString *)channelID content:(nullable NSString *)content pollJSON:(NSDictionary *)pollJSON completion:(CLMRESTCompletion)completion;
 - (void)getPollAnswerUsersInChannel:(NSString *)channelID messageID:(NSString *)messageID answerID:(NSString *)answerID after:(nullable NSString *)after limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
+- (void)expirePollInChannel:(NSString *)channelID messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion;
 
 // Guilds
 - (void)getGuildWithID:(NSString *)guildID completion:(CLMRESTCompletion)completion;
@@ -109,6 +123,9 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)executeWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
 // Webhook execute options
 - (void)executeWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json threadID:(nullable NSString *)threadID wait:(nullable NSNumber *)wait files:(nullable NSArray<CLMRESTFilePart *> *)files completion:(CLMRESTCompletion)completion;
+- (void)executeSlackWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json threadID:(nullable NSString *)threadID completion:(CLMRESTCompletion)completion;
+- (void)executeGitHubWebhookWithID:(NSString *)webhookID token:(NSString *)token json:(NSDictionary *)json threadID:(nullable NSString *)threadID completion:(CLMRESTCompletion)completion;
+- (void)getWebhookMessage:(NSString *)webhookID token:(NSString *)token messageID:(NSString *)messageID completion:(CLMRESTCompletion)completion;
 // Invites
 - (void)createInviteInChannel:(NSString *)channelID maxAge:(nullable NSNumber *)maxAge maxUses:(nullable NSNumber *)maxUses temporary:(nullable NSNumber *)temporary unique:(nullable NSNumber *)unique completion:(CLMRESTCompletion)completion;
 - (void)createInviteInChannel:(NSString *)channelID maxAge:(nullable NSNumber *)maxAge maxUses:(nullable NSNumber *)maxUses temporary:(nullable NSNumber *)temporary unique:(nullable NSNumber *)unique auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
@@ -125,6 +142,14 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)createGuildApplicationCommand:(NSString *)applicationID guildID:(NSString *)guildID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 - (void)editGuildApplicationCommand:(NSString *)applicationID guildID:(NSString *)guildID commandID:(NSString *)commandID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 - (void)deleteGuildApplicationCommand:(NSString *)applicationID guildID:(NSString *)guildID commandID:(NSString *)commandID completion:(CLMRESTCompletion)completion;
+- (void)bulkOverwriteGlobalCommands:(NSString *)applicationID commands:(NSArray<NSDictionary *> *)commands completion:(CLMRESTCompletion)completion;
+- (void)getGlobalApplicationCommand:(NSString *)applicationID commandID:(NSString *)commandID completion:(CLMRESTCompletion)completion;
+- (void)bulkOverwriteGuildCommands:(NSString *)applicationID guildID:(NSString *)guildID commands:(NSArray<NSDictionary *> *)commands completion:(CLMRESTCompletion)completion;
+- (void)getGuildApplicationCommand:(NSString *)applicationID guildID:(NSString *)guildID commandID:(NSString *)commandID completion:(CLMRESTCompletion)completion;
+- (void)listGuildApplicationCommandPermissions:(NSString *)applicationID guildID:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)batchEditGuildCommandPermissions:(NSString *)applicationID guildID:(NSString *)guildID permissions:(NSArray<NSDictionary *> *)permissions completion:(CLMRESTCompletion)completion;
+- (void)getApplicationCommandPermissions:(NSString *)applicationID guildID:(NSString *)guildID commandID:(NSString *)commandID completion:(CLMRESTCompletion)completion;
+- (void)editApplicationCommandPermissions:(NSString *)applicationID guildID:(NSString *)guildID commandID:(NSString *)commandID permissions:(NSArray<NSDictionary *> *)permissions completion:(CLMRESTCompletion)completion;
 // Channel Permission Overwrites
 - (void)setPermissionOverwriteInChannel:(NSString *)channelID overwriteID:(NSString *)overwriteID allow:(nullable NSNumber *)allow deny:(nullable NSNumber *)deny type:(NSNumber *)type completion:(CLMRESTCompletion)completion;
 - (void)setPermissionOverwriteInChannel:(NSString *)channelID overwriteID:(NSString *)overwriteID allow:(nullable NSNumber *)allow deny:(nullable NSNumber *)deny type:(NSNumber *)type auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
@@ -166,6 +191,20 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)modifyGuildWidget:(NSString *)guildID enabled:(nullable NSNumber *)enabled channelID:(nullable NSString *)channelID auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
 - (void)getGuildVanityURL:(NSString *)guildID completion:(CLMRESTCompletion)completion;
 - (void)listGuildIntegrations:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)getGuildPreview:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)modifyGuildChannelPositions:(NSString *)guildID positions:(NSArray<NSDictionary *> *)positions completion:(CLMRESTCompletion)completion;
+- (void)addGuildMember:(NSString *)guildID userID:(NSString *)userID accessToken:(NSString *)accessToken nick:(nullable NSString *)nick roles:(nullable NSArray<NSString *> *)roles mute:(nullable NSNumber *)mute deaf:(nullable NSNumber *)deaf completion:(CLMRESTCompletion)completion;
+- (void)modifyCurrentMemberInGuild:(NSString *)guildID nick:(nullable NSString *)nick completion:(CLMRESTCompletion)completion;
+- (void)searchGuildMessages:(NSString *)guildID query:(NSDictionary *)query completion:(CLMRESTCompletion)completion;
+- (void)modifyRoleInGuild:(NSString *)guildID roleID:(NSString *)roleID json:(NSDictionary *)json auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+- (void)getRoleInGuild:(NSString *)guildID roleID:(NSString *)roleID completion:(CLMRESTCompletion)completion;
+- (void)getRoleMemberCountsInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)getGuildVoiceRegions:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)deleteGuildIntegration:(NSString *)guildID integrationID:(NSString *)integrationID completion:(CLMRESTCompletion)completion;
+- (void)bulkBanUsersInGuild:(NSString *)guildID userIDs:(NSArray<NSString *> *)userIDs deleteMessageSeconds:(nullable NSNumber *)deleteMessageSeconds auditLogReason:(nullable NSString *)reason completion:(CLMRESTCompletion)completion;
+- (void)getGuildMemberVerification:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)modifyGuildMemberVerification:(NSString *)guildID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
+- (void)modifyGuildIncidentActions:(NSString *)guildID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 // Threads
 - (void)startThreadFromMessageInChannel:(NSString *)channelID messageID:(NSString *)messageID name:(NSString *)name autoArchiveDuration:(nullable NSNumber *)autoArchiveDuration rateLimitPerUser:(nullable NSNumber *)rateLimitPerUser completion:(CLMRESTCompletion)completion;
 - (void)startThreadInChannel:(NSString *)channelID name:(NSString *)name autoArchiveDuration:(nullable NSNumber *)autoArchiveDuration type:(nullable NSNumber *)type invitable:(nullable NSNumber *)invitable rateLimitPerUser:(nullable NSNumber *)rateLimitPerUser completion:(CLMRESTCompletion)completion;
@@ -201,6 +240,7 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 - (void)modifyGuildScheduledEvent:(NSString *)guildID eventID:(NSString *)eventID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
 - (void)deleteGuildScheduledEvent:(NSString *)guildID eventID:(NSString *)eventID completion:(CLMRESTCompletion)completion;
 - (void)listGuildScheduledEventUsers:(NSString *)guildID eventID:(NSString *)eventID withMember:(nullable NSNumber *)withMember before:(nullable NSString *)before after:(nullable NSString *)after limit:(nullable NSNumber *)limit completion:(CLMRESTCompletion)completion;
+- (void)getGuildScheduledEvent:(NSString *)guildID eventID:(NSString *)eventID withUsers:(nullable NSNumber *)withUsers completion:(CLMRESTCompletion)completion;
 // Stage Instances
 - (void)createStageInstanceWithChannelID:(NSString *)channelID topic:(NSString *)topic privacyLevel:(nullable NSNumber *)privacyLevel completion:(CLMRESTCompletion)completion;
 - (void)modifyStageInstanceWithChannelID:(NSString *)channelID topic:(nullable NSString *)topic privacyLevel:(nullable NSNumber *)privacyLevel completion:(CLMRESTCompletion)completion;
@@ -215,6 +255,11 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 // Voice State
 - (void)modifyCurrentUserVoiceStateInGuild:(NSString *)guildID channelID:(NSString *)channelID suppress:(nullable NSNumber *)suppress requestToSpeakTimestampISO8601:(nullable NSString *)timestamp completion:(CLMRESTCompletion)completion;
 - (void)modifyUserVoiceStateInGuild:(NSString *)guildID userID:(NSString *)userID channelID:(NSString *)channelID suppress:(nullable NSNumber *)suppress completion:(CLMRESTCompletion)completion;
+// Voice Regions
+- (void)listVoiceRegionsWithCompletion:(CLMRESTCompletion)completion;
+// Voice States
+- (void)getCurrentUserVoiceStateInGuild:(NSString *)guildID completion:(CLMRESTCompletion)completion;
+- (void)getUserVoiceStateInGuild:(NSString *)guildID userID:(NSString *)userID completion:(CLMRESTCompletion)completion;
 // Guild Templates
 - (void)listGuildTemplates:(NSString *)guildID completion:(CLMRESTCompletion)completion;
 - (void)getGuildTemplateWithCode:(NSString *)code completion:(CLMRESTCompletion)completion;
@@ -228,5 +273,16 @@ typedef void (^CLMRESTCompletion)(CLMRESTResponse *response);
 // Onboarding
 - (void)getGuildOnboarding:(NSString *)guildID completion:(CLMRESTCompletion)completion;
 - (void)modifyGuildOnboarding:(NSString *)guildID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
+// Gateway
+- (void)getGatewayWithCompletion:(CLMRESTCompletion)completion;
+- (void)getGatewayBotWithCompletion:(CLMRESTCompletion)completion;
+// Role Connection Metadata
+- (void)getApplicationRoleConnectionMetadata:(NSString *)applicationID completion:(CLMRESTCompletion)completion;
+- (void)updateApplicationRoleConnectionMetadata:(NSString *)applicationID json:(NSDictionary *)json completion:(CLMRESTCompletion)completion;
+// OAuth2
+- (void)getOAuth2ApplicationWithCompletion:(CLMRESTCompletion)completion;
+- (void)getOAuth2AuthorizationWithCompletion:(CLMRESTCompletion)completion;
+// Sticker Packs
+- (void)getStickerPackWithID:(NSString *)packID completion:(CLMRESTCompletion)completion;
 @end
 NS_ASSUME_NONNULL_END

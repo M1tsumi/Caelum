@@ -1,5 +1,7 @@
 #import "CLMDiscordClient.h"
+#import "CLMLogger.h"
 @implementation CLMDiscordClient
+@synthesize logger = _logger;
 - (instancetype)initWithREST:(CLMDiscordRESTClient *)rest gateway:(CLMDiscordGatewayClient *)gateway {
     if ((self=[super init])) { _rest = rest; _gateway = gateway; }
     return self;

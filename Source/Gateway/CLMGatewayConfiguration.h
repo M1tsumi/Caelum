@@ -21,6 +21,8 @@ typedef NS_OPTIONS(NSUInteger, CLMIntents) {
     CLMIntentGuildScheduledEvents   = 1 << 16,
     CLMIntentAutoModConfiguration   = 1 << 20,
     CLMIntentAutoModExecution       = 1 << 21,
+    CLMIntentGuildMessagePolls      = 1 << 24,
+    CLMIntentDirectMessagePolls     = 1 << 25,
 };
 @interface CLMGatewayConfiguration : NSObject
 @property (nonatomic) CLMIntents intents;
